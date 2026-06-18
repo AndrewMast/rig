@@ -31,6 +31,12 @@ func newRootCmd(app *App) *cobra.Command {
 	root.AddCommand(newPathCmd())
 	root.AddCommand(newCdCmd())
 	root.AddCommand(newShellInitCmd())
+	root.AddCommand(newGroupCmd())
+	root.AddCommand(newAliasCmd())
+	root.AddCommand(newCreateCmd())
+	root.AddCommand(newAdoptCmd())
+	root.AddCommand(newListCmd())
+	root.AddCommand(newStatusCmd())
 
 	// Config-defined launchers register last and may not shadow a built-in.
 	registerLaunchers(root, app)
