@@ -2,7 +2,7 @@ name: Rig
 icon: null
 processes:
   Go Test:
-    command: go test ./... -count=1 -v
+    command: test -z "$(gofmt -l .)" && go vet ./... && go test ./... -count=1 -v
     working_dir: null
     auto_start: false
     auto_restart: false
