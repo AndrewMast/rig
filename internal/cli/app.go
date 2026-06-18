@@ -3,18 +3,27 @@ package cli
 import (
 	"context"
 
+	"github.com/AndrewMast/rig/internal/clock"
 	"github.com/AndrewMast/rig/internal/config"
+	"github.com/AndrewMast/rig/internal/gh"
+	"github.com/AndrewMast/rig/internal/git"
+	"github.com/AndrewMast/rig/internal/keygen"
 	"github.com/AndrewMast/rig/internal/registry"
 	"github.com/spf13/cobra"
 )
 
 // App is the shared context every command receives: resolved paths, loaded
-// config, and the registry store. IO clients (git/gh/keygen/clock) are added as
-// those seams come online.
+// config, the registry store, and the IO seams (behind interfaces so tests
+// swap in fakes).
 type App struct {
 	Paths  config.Paths
 	Config *config.Config
 	Store  *registry.Store
+
+	Git    git.Git
+	GH     gh.GH
+	Keygen keygen.Keygen
+	Clock  clock.Clock
 }
 
 // newApp resolves paths and loads config. It is called once per invocation from
@@ -32,6 +41,10 @@ func newApp() (*App, error) {
 		Paths:  paths,
 		Config: cfg,
 		Store:  registry.NewStore(paths.Registry),
+		Git:    git.New(),
+		GH:     gh.New(gh.LoadToken(cfg.TokenFile(paths))),
+		Keygen: keygen.New(),
+		Clock:  clock.Real{},
 	}, nil
 }
 
