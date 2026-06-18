@@ -1,4 +1,10 @@
-# Visit https://soloterm.com to learn more
 name: Rig
 icon: null
-processes: {}
+processes:
+  Go Test:
+    command: go test ./... -count=1 -v
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
