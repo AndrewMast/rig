@@ -1,5 +1,7 @@
 # rig
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
 A single CLI to stand up, authenticate, navigate, and manage local coding
 projects. rig organizes checkouts into groups, derives every project path,
 manages per-repo SSH deploy keys, and produces the exact GitHub mutations a
@@ -72,6 +74,11 @@ by tests with IO faked.
 Disposable dev mode: set `RIG_HOME` to a throwaway directory and rig keeps its
 registry, ssh dir, and project base under that root with guards skipped.
 
+### Solo
+
+This repo ships a [`solo.yml`](solo.yml) for [Solo](https://soloterm.com). Open
+the project in Solo to run the checks from the **Go Test** command.
+
 ## License
 
-[MIT](LICENSE)
+rig is released under the [MIT License](LICENSE).
