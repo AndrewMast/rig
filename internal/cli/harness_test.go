@@ -34,6 +34,7 @@ func newTestApp(t *testing.T, stdin string) *testApp {
 		t.Fatalf("resolve paths: %v", err)
 	}
 	cfg := config.Default(paths)
+	cfg.Handoff.Method = config.MethodPrint // no real clipboard/gh side effects in tests
 
 	out := &bytes.Buffer{}
 	gf := git.NewFake()

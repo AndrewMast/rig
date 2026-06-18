@@ -1,0 +1,104 @@
+package cli
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/AndrewMast/rig/internal/handoff"
+	"github.com/AndrewMast/rig/internal/model"
+)
+
+func TestOriginAddHostsLocalProjectGHDirect(t *testing.T) {
+	// create local, then host it. stdin: owner, repo name (default), confirm.
+	ta := newTestApp(t, "AndrewMast\n\n\n")
+	ta.Config.Handoff.Method = "gh"
+	var ran []string
+	ta.envOverride = &handoff.Env{Run: func(c string) error { ran = append(ran, c); return nil }}
+
+	if _, err := ta.run(t, "create", "Acme/widget"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ta.run(t, "project", "origin", "add", "Acme/widget"); err != nil {
+		t.Fatalf("origin add: %v", err)
+	}
+	p := ta.reg(t).FindProject("Acme", "widget")
+	if p.Strategy != model.StrategyDeployKey || p.Repo != "AndrewMast/widget" {
+		t.Fatalf("project = %+v", p)
+	}
+	if p.State != model.StateActive {
+		t.Errorf("gh-direct host should be active, got %s", p.State)
+	}
+	// Should have run a repo-create and a deploy-key-add.
+	joined := strings.Join(ran, "\n")
+	if !strings.Contains(joined, "repo create") || !strings.Contains(joined, "/keys") {
+		t.Errorf("expected repo-create + deploy-key-add, got %v", ran)
+	}
+}
+
+func TestOriginRemoveUnhosts(t *testing.T) {
+	ta := newTestApp(t, "Acme\n\n")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ta.run(t, "project", "origin", "remove", "Acme/widget"); err != nil {
+		t.Fatalf("origin remove: %v", err)
+	}
+	p := ta.reg(t).FindProject("Acme", "widget")
+	if p.Strategy != model.StrategyLocal || p.Repo != "" || p.KeyID != "" {
+		t.Errorf("project not unhosted: %+v", p)
+	}
+}
+
+func TestKeyDeleteBlockedWhileBound(t *testing.T) {
+	ta := newTestApp(t, "Acme\n\n")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ta.run(t, "key", "delete", "abc123")
+	if err == nil || !strings.Contains(err.Error(), "bound") {
+		t.Errorf("expected bound-key delete to be blocked, got %v", err)
+	}
+}
+
+func TestKeyCreateAndList(t *testing.T) {
+	ta := newTestApp(t, "")
+	if _, err := ta.run(t, "key", "create", "AndrewMast/widget", "--write", "--label", "laptop"); err != nil {
+		t.Fatalf("key create: %v", err)
+	}
+	keys := ta.reg(t).KeysForRepo("AndrewMast/widget")
+	if len(keys) != 1 || !keys[0].Write || keys[0].Label != "laptop" {
+		t.Fatalf("keys = %+v", keys)
+	}
+	out, _ := ta.run(t, "key", "list")
+	if !strings.Contains(out, "AndrewMast/widget") || !strings.Contains(out, "write") {
+		t.Errorf("key list: %q", out)
+	}
+}
+
+func TestProjectGuardToggle(t *testing.T) {
+	ta := newTestApp(t, "Acme\n\n")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ta.run(t, "project", "guard", "Acme/widget", "on"); err != nil {
+		t.Fatalf("guard on: %v", err)
+	}
+	if !ta.reg(t).FindProject("Acme", "widget").Guard {
+		t.Error("guard should be on")
+	}
+	if _, err := ta.run(t, "project", "guard", "Acme/widget", "off"); err != nil {
+		t.Fatalf("guard off: %v", err)
+	}
+	if ta.reg(t).FindProject("Acme", "widget").Guard {
+		t.Error("guard should be off")
+	}
+}

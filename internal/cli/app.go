@@ -7,6 +7,7 @@ import (
 	"github.com/AndrewMast/rig/internal/config"
 	"github.com/AndrewMast/rig/internal/gh"
 	"github.com/AndrewMast/rig/internal/git"
+	"github.com/AndrewMast/rig/internal/handoff"
 	"github.com/AndrewMast/rig/internal/keygen"
 	"github.com/AndrewMast/rig/internal/registry"
 	"github.com/AndrewMast/rig/internal/ui"
@@ -26,6 +27,10 @@ type App struct {
 	Keygen keygen.Keygen
 	Clock  clock.Clock
 	UI     *ui.UI
+
+	// envOverride, when set, replaces the real handoff delivery capabilities
+	// (clipboard/opener/runner) — used by tests.
+	envOverride *handoff.Env
 }
 
 // newApp resolves paths and loads config. It is called once per invocation from
