@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -78,6 +79,58 @@ func TestKeyCreateAndList(t *testing.T) {
 	out, _ := ta.run(t, "key", "list")
 	if !strings.Contains(out, "AndrewMast/widget") || !strings.Contains(out, "write") {
 		t.Errorf("key list: %q", out)
+	}
+}
+
+func TestKeyVerifyPromotesPending(t *testing.T) {
+	ta := newTestApp(t, "")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Slug: "andrewmast-widget", State: model.StatePending})
+	ta.SaveRegistry(reg)
+
+	out, err := ta.run(t, "key", "verify", "abc123")
+	if err != nil {
+		t.Fatalf("key verify: %v", err)
+	}
+	if !strings.Contains(out, "active") {
+		t.Errorf("output = %q, want it to mention active", out)
+	}
+	if got := ta.reg(t).FindKey("abc123").State; got != model.StateActive {
+		t.Errorf("state = %s, want active", got)
+	}
+}
+
+func TestKeyVerifyByRepoPromotesEveryKey(t *testing.T) {
+	ta := newTestApp(t, "")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "read01", Repo: "AndrewMast/widget", Slug: "andrewmast-widget", State: model.StatePending})
+	reg.AddKey(model.Key{ID: "write1", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StatePending})
+	ta.SaveRegistry(reg)
+
+	if _, err := ta.run(t, "key", "verify", "AndrewMast/widget"); err != nil {
+		t.Fatalf("key verify: %v", err)
+	}
+	for _, id := range []string{"read01", "write1"} {
+		if got := ta.reg(t).FindKey(id).State; got != model.StateActive {
+			t.Errorf("key %s state = %s, want active", id, got)
+		}
+	}
+}
+
+func TestKeyVerifyFailureLeavesPending(t *testing.T) {
+	ta := newTestApp(t, "")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Slug: "andrewmast-widget", State: model.StatePending})
+	ta.SaveRegistry(reg)
+	// The remote rejects the key (not added to GitHub yet).
+	ta.gitFake.LsRemoteErr["git@github.com:AndrewMast/widget.git"] = fmt.Errorf("permission denied")
+
+	_, err := ta.run(t, "key", "verify", "abc123")
+	if err == nil {
+		t.Fatal("expected verification to fail")
+	}
+	if got := ta.reg(t).FindKey("abc123").State; got != model.StatePending {
+		t.Errorf("state = %s, want pending (failure must not promote)", got)
 	}
 }
 

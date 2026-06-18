@@ -52,6 +52,11 @@ func (a *App) printStatus(cmd *cobra.Command, reg *registry.Registry, p model.Pr
 	cmd.Printf("%s\n", p.ID())
 	cmd.Printf("  state:    %s\n", p.State)
 	cmd.Printf("  remote:   %s\n", describeRemote(reg, p))
+	if p.Strategy == model.StrategyDeployKey {
+		if k := reg.FindKey(p.KeyID); k != nil && k.State == model.StatePending {
+			cmd.Printf("  key:      %s %s pending (run `rig key verify`)\n", k.ID, k.Access())
+		}
+	}
 
 	g := reg.FindGroup(p.Group)
 	if g == nil {

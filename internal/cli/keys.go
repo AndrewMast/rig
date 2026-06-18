@@ -104,8 +104,101 @@ func newKeyCmd() *cobra.Command {
 		Use:   "key",
 		Short: "Manage SSH deploy keys (many per repo; read/write independent)",
 	}
-	cmd.AddCommand(newKeyCreateCmd(), newKeyListCmd(), newKeyDeleteCmd())
+	cmd.AddCommand(newKeyCreateCmd(), newKeyListCmd(), newKeyVerifyCmd(), newKeyDeleteCmd())
 	return cmd
+}
+
+// newKeyVerifyCmd probes a deploy key over SSH and promotes it from pending to
+// active. Verification is a property of the (key, repo) pair — it needs no
+// checkout and works whether or not the key is bound to a project — so it lives
+// here rather than on `project finish`, which short-circuits once a project is
+// already active.
+func newKeyVerifyCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "verify [id | owner/repo]",
+		Short: "Probe a deploy key over SSH and promote it from pending to active",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			app := appFrom(cmd)
+			reg, err := app.Registry()
+			if err != nil {
+				return err
+			}
+			keys, err := app.keysToVerify(reg, args)
+			if err != nil {
+				return err
+			}
+			var failed int
+			for _, k := range keys {
+				if err := app.verifyKey(cmd, k); err != nil {
+					failed++
+					cmd.Printf("key %s (%s) for %s: still pending — %v\n", k.ID, k.Access(), k.Repo, err)
+				}
+			}
+			if err := app.SaveRegistry(reg); err != nil {
+				return err
+			}
+			if failed > 0 {
+				return fmt.Errorf("%d of %d key(s) failed verification", failed, len(keys))
+			}
+			return nil
+		},
+	}
+}
+
+// keysToVerify resolves the verify target to one or more registry keys. With no
+// argument it picks the cwd project's bound key; an owner/repo verifies every
+// key for that repo; anything else is treated as a key id. The returned keys
+// point into the registry so verifyKey can promote their state in place.
+func (a *App) keysToVerify(reg *registry.Registry, args []string) ([]*model.Key, error) {
+	if len(args) == 0 {
+		tok, ok := projectTokenForCwd(a)
+		if !ok {
+			return nil, fmt.Errorf("not inside a project; pass a key id or owner/repo")
+		}
+		p, err := a.loadProject(reg, tok)
+		if err != nil {
+			return nil, err
+		}
+		if p.KeyID == "" {
+			return nil, fmt.Errorf("%s has no deploy key bound", p.ID())
+		}
+		k := reg.FindKey(p.KeyID)
+		if k == nil {
+			return nil, fmt.Errorf("bound key %q not found", p.KeyID)
+		}
+		return []*model.Key{k}, nil
+	}
+	arg := args[0]
+	if _, _, ok := model.ParseRepo(arg); ok {
+		var out []*model.Key
+		for _, k := range reg.KeysForRepo(arg) {
+			if kp := reg.FindKey(k.ID); kp != nil {
+				out = append(out, kp)
+			}
+		}
+		if len(out) == 0 {
+			return nil, fmt.Errorf("no keys registered for %s", arg)
+		}
+		return out, nil
+	}
+	k := reg.FindKey(arg)
+	if k == nil {
+		return nil, fmt.Errorf("key %q not found", arg)
+	}
+	return []*model.Key{k}, nil
+}
+
+// verifyKey probes the key's read access over SSH and, on success, marks it
+// active. It is idempotent. On failure the state is left untouched so a transient
+// network error never demotes a working key; the caller reports the failure.
+func (a *App) verifyKey(cmd *cobra.Command, k *model.Key) error {
+	if err := a.Git.LsRemote(context.Background(), "", repoSSHURL(k.Repo), a.keyPath(*k)); err != nil {
+		return err
+	}
+	k.State = model.StateActive
+	cmd.Printf("key %s (%s) verified for %s — active\n", k.ID, k.Access(), k.Repo)
+	return nil
 }
 
 func newKeyCreateCmd() *cobra.Command {
