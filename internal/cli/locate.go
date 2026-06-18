@@ -29,7 +29,7 @@ func projectTokenForCwd(app *App) (string, bool) {
 			continue
 		}
 		ppath := p.Path(*g)
-		if cwd == ppath || strings.HasPrefix(cwd, ppath+string(filepath.Separator)) {
+		if pathWithin(cwd, ppath) {
 			// Prefer the deepest (most specific) match.
 			if len(ppath) > len(bestPath) {
 				best, bestPath = p, ppath
@@ -40,6 +40,15 @@ func projectTokenForCwd(app *App) (string, bool) {
 		return "", false
 	}
 	return best.ID(), true
+}
+
+// pathWithin reports whether dir is base or lives beneath it. Comparison is
+// case-insensitive: on case-insensitive filesystems (macOS, Windows) the cwd
+// reflects whatever casing was typed at `cd`, which need not match the
+// registry's canonical casing for the group/name.
+func pathWithin(dir, base string) bool {
+	dirLow, baseLow := strings.ToLower(dir), strings.ToLower(base)
+	return dirLow == baseLow || strings.HasPrefix(dirLow, baseLow+string(filepath.Separator))
 }
 
 // firstArg returns args[0], or "" when args is empty.

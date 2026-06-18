@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolving the project from the current directory is now case-insensitive, so
+  `cd`-ing in with casing that differs from the registry's group/name (common on
+  case-insensitive macOS/Windows filesystems) no longer reports "not inside a
+  project".
+
 ## [0.0.2] - 2026-06-18
 
 ### Added
