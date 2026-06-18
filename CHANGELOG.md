@@ -19,12 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - Multi-key deploy-key model: many keys per repo, read and write as independent
   key objects; `rig key create/list/delete`.
 - Per-project push guard (the `no_push` sentinel) via `rig project guard`, plus
-  `rig project key/origin/upstream/finish/delete/alias`.
+  `rig project key/origin/upstream/finish/delete/alias`. `origin add` reads a
+  smart `owner/repo` argument inside a project and demotes a prior source to
+  `upstream` when attaching a new writable origin.
 - Pluggable handoff delivery (clipboard, drop, link, print, file, gh) with a
   dual-mode finish/verify loop; verification is always git-over-SSH.
 - Optional read-only GitHub metadata token (`rig config token set/remove/status`).
-- Resolver-driven navigation (`rig path`/`rig cd`), zsh/bash shell integration,
-  and config-defined launchers.
+- Resolver-driven navigation (`rig path`/`rig cd`), with a bare-token fuzzy-nav
+  fallback (`rig <token>`), zsh/bash shell integration, and config-defined
+  launchers.
+- Optional `[guard]` (`expected_user`/`expected_host`) that warns and refuses on
+  an unexpected host; skipped in disposable dev mode.
 - Reusable project types and per-project `rig.toml` overlays with hooks and
   extra commands.
 - Configuration via `config.toml` with `rig config show/get/set/edit`.

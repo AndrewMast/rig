@@ -63,6 +63,30 @@ func newCdCmd() *cobra.Command {
 	}
 }
 
+// runFuzzyNav is the root command's fallback: when the first argument matches no
+// built-in, launcher, or type/project command, treat it as a navigation token.
+// It prints the resolved path (a scriptable primitive); the shell wrapper turns
+// `rig cd <token>` into an actual directory change.
+func runFuzzyNav(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
+	app := appFrom(cmd)
+	reg, err := app.Registry()
+	if err != nil {
+		return err
+	}
+	t, err := app.resolveTarget(reg, args[0], true)
+	if err != nil {
+		return fmt.Errorf("%q is not a command or a known project/group", args[0])
+	}
+	cmd.Println(t.Path)
+	if app.UI.Interactive {
+		fmt.Fprintf(os.Stderr, "rig: %q — use `rig cd %s` to change directory\n", t.Path, args[0])
+	}
+	return nil
+}
+
 // navToken returns the explicit token, or resolves the cwd / picker when none
 // was given.
 func navToken(app *App, args []string) (string, error) {

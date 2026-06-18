@@ -104,23 +104,52 @@ func newProjectKeyCmd() *cobra.Command {
 
 func newProjectOriginCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "origin [add|remove]",
+		Use:   "origin [add|remove] [group/name] [owner/repo]",
 		Short: "Inspect or change a project's origin (host a local project, or unhost)",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.MaximumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
-			// Smart arg reading: `rig project origin <g/n>` inspects;
-			// `rig project origin add <g/n>` / `remove <g/n>` act.
-			action, token := "inspect", args[0]
-			if args[0] == "add" || args[0] == "remove" {
-				if len(args) != 2 {
-					return fmt.Errorf("usage: rig project origin %s <group/name>", args[0])
+			// Arg shapes:
+			//   origin add|remove <g/n>      explicit action on a project
+			//   origin add|remove <g/n> <owner/repo>   prefilled repo for add
+			//   origin <owner/repo>          smart: set the cwd project's origin
+			//   origin <g/n>                 inspect that project
+			//   origin                       inspect the cwd project
+			action, token, repoArg := "inspect", "", ""
+			switch {
+			case len(args) == 0:
+				// inspect cwd
+			case args[0] == "add" || args[0] == "remove":
+				action = args[0]
+				if len(args) < 2 {
+					return fmt.Errorf("usage: rig project origin %s <group/name> [owner/repo]", args[0])
 				}
-				action, token = args[0], args[1]
+				token = args[1]
+				if len(args) >= 3 {
+					repoArg = args[2]
+				}
+			default:
+				// Smart reading: a bare owner/repo while inside a local project
+				// means "set this project's origin".
+				if _, _, ok := model.ParseRepo(args[0]); ok && reg.FindProject(splitOrEmpty(args[0])) == nil {
+					if tok, inProj := projectTokenForCwd(app); inProj {
+						action, token, repoArg = "add", tok, args[0]
+						break
+					}
+				}
+				token = args[0]
+			}
+
+			if token == "" {
+				tok, ok := projectTokenForCwd(app)
+				if !ok {
+					return fmt.Errorf("not inside a project; pass a group/name")
+				}
+				token = tok
 			}
 			p, err := app.loadProject(reg, token)
 			if err != nil {
@@ -128,16 +157,27 @@ func newProjectOriginCmd() *cobra.Command {
 			}
 			switch action {
 			case "inspect":
-				cmd.Printf("%s\n  strategy: %s\n  repo: %s\n", p.ID(), p.Strategy, orNone(p.Repo))
+				cmd.Printf("%s\n  strategy: %s\n  repo: %s\n  upstream: %s\n",
+					p.ID(), p.Strategy, orNone(p.Repo), orNone(p.Upstream))
 				return nil
 			case "remove":
 				return app.originRemove(cmd, reg, p)
 			default:
-				return app.originAdd(cmd, reg, p)
+				return app.originAdd(cmd, reg, p, repoArg)
 			}
 		},
 	}
 	return cmd
+}
+
+// splitOrEmpty returns the (group, name) of a "g/n" token, or ("","") so a
+// non-project owner/repo argument never matches an existing project.
+func splitOrEmpty(token string) (string, string) {
+	g, n, ok := splitSlash(token)
+	if !ok {
+		return "", ""
+	}
+	return g, n
 }
 
 // originRemove drops the origin remote and returns the project to local-only.
@@ -156,30 +196,47 @@ func (a *App) originRemove(cmd *cobra.Command, reg *registry.Registry, p *model.
 	return nil
 }
 
-// originAdd hosts a local project: it decides create-vs-attach, binds a write
-// key, wires the origin remote, and runs the handoff + verify loop.
-func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Project) error {
-	if p.Repo != "" {
-		return fmt.Errorf("%s already has an origin (%s)", p.ID(), p.Repo)
-	}
+// originAdd hosts a local project or attaches a new writable origin onto an
+// existing (e.g. read-only) clone. When it attaches a new repo over an existing
+// origin, the old source is demoted to `upstream` by default. It decides
+// create-vs-attach, binds a write key, wires the remotes, and runs the
+// handoff + verify loop. repoArg, when non-empty, prefills the target repo.
+func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Project, repoArg string) error {
 	ctx := context.Background()
+	// Capture the current origin before we change it (for demote-to-upstream).
+	oldRepo := p.Repo
+	oldURL := a.remoteURLFor(reg, p)
 
-	// Determine the target repo: default owner from the token if available.
-	defOwner := ""
-	if a.GH.Available() {
-		if login, err := a.GH.Login(ctx); err == nil {
-			defOwner = login
+	// Determine the target repo.
+	owner, repoName := "", ""
+	if r := repoArg; r != "" {
+		o, n, ok := model.ParseRepo(r)
+		if !ok {
+			return fmt.Errorf("expected owner/repo, got %q", r)
 		}
-	}
-	owner, err := a.UI.Input("Owner", defOwner)
-	if err != nil {
-		return err
-	}
-	repoName, err := a.UI.Input("Repo name", p.Name)
-	if err != nil {
-		return err
+		owner, repoName = o, n
+	} else {
+		defOwner := ""
+		if a.GH.Available() {
+			if login, err := a.GH.Login(ctx); err == nil {
+				defOwner = login
+			}
+		}
+		o, err := a.UI.Input("Owner", defOwner)
+		if err != nil {
+			return err
+		}
+		n, err := a.UI.Input("Repo name", p.Name)
+		if err != nil {
+			return err
+		}
+		owner, repoName = o, n
 	}
 	repo := owner + "/" + repoName
+
+	if repo == oldRepo {
+		return fmt.Errorf("%s already has origin %s", p.ID(), oldRepo)
+	}
 
 	// New vs attach: the token probes existence; always confirm.
 	exists := false
@@ -198,6 +255,16 @@ func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Pro
 		return err
 	}
 
+	// Demote an existing source (e.g. a read-only clone) to upstream so the
+	// PR-back relationship is preserved.
+	demote := false
+	if oldRepo != "" {
+		demote, err = a.UI.Confirm(fmt.Sprintf("Demote current source %s to upstream?", oldRepo), true)
+		if err != nil {
+			return err
+		}
+	}
+
 	key, mut, fresh, err := a.keyForClone(reg, repo, true) // hosting your own repo → write key
 	if err != nil {
 		return err
@@ -207,6 +274,9 @@ func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Pro
 	p.KeyID = key.ID
 	p.Guard = false
 	p.State = model.StatePending
+	if demote {
+		p.Upstream = oldRepo
+	}
 	if err := a.SaveRegistry(reg); err != nil {
 		return err
 	}
@@ -226,9 +296,17 @@ func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Pro
 		return err
 	}
 
-	// Wire the origin remote on the existing local checkout.
+	// Move the old source onto `upstream` before re-pointing origin.
 	g := reg.FindGroup(p.Group)
 	path := p.Path(*g)
+	if demote && oldURL != "" {
+		if err := a.Git.AddRemote(ctx, path, "upstream", oldURL); err != nil {
+			_ = a.Git.SetRemoteURL(ctx, path, "upstream", oldURL)
+		}
+		cmd.Printf("demoted %s to upstream\n", oldRepo)
+	}
+
+	// Wire the (new) origin remote on the existing checkout.
 	url := a.remoteURLFor(reg, p)
 	if err := a.Git.AddRemote(ctx, path, "origin", url); err != nil {
 		// Already present? fall back to set-url.

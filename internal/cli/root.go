@@ -22,6 +22,15 @@ func newRootCmd(app *App) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
+		Args:          cobra.ArbitraryArgs,
+		// Enforce the optional [guard] before any command runs.
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return appFrom(cmd).checkGuard(cmd)
+		},
+		// Lowest precedence in the command ladder (built-in > launcher >
+		// type/project command > fuzzy nav): a bare token that matches no
+		// command is resolved as a navigation target.
+		RunE: runFuzzyNav,
 	}
 	root.SetVersionTemplate("rig {{.Version}}\n")
 
