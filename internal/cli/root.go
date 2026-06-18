@@ -33,6 +33,10 @@ func newRootCmd(app *App) *cobra.Command {
 		RunE: runFuzzyNav,
 	}
 	root.SetVersionTemplate("rig {{.Version}}\n")
+	// cobra's cmd.Print* family defaults to stderr; route it to stdout so
+	// scriptable output (rig path, shell-init, list, …) is capturable via
+	// $(...). Errors are written explicitly to os.Stderr below.
+	root.SetOut(os.Stdout)
 
 	// Built-in command groups. These always win over launchers.
 	root.AddCommand(newSelfCmd())
