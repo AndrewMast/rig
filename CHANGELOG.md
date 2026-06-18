@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-06-18
+## [0.0.1] - 2026-06-18
 
 ### Added
 
@@ -29,5 +29,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
   extra commands.
 - Configuration via `config.toml` with `rig config show/get/set/edit`.
 
-[Unreleased]: https://github.com/AndrewMast/rig/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/AndrewMast/rig/releases/tag/v0.1.0
+[Unreleased]: https://github.com/AndrewMast/rig/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/AndrewMast/rig/releases/tag/v0.0.1
