@@ -29,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - Pluggable handoff delivery (clipboard, drop, link, print, file, gh) with a
   dual-mode finish/verify loop; verification is always git-over-SSH.
 - Optional read-only GitHub metadata token (`rig config token set/remove/status`).
+- Deploy-key titles are `rig:<device>:<id>`, where `device` defaults to the
+  short, lowercased hostname and is overridable via `github.device` in config.
 - Resolver-driven navigation (`rig path`/`rig cd`), with a bare-token fuzzy-nav
   fallback (`rig <token>`), zsh/bash shell integration, and config-defined
   launchers.

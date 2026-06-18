@@ -61,6 +61,24 @@ func TestSaveLoadRoundTripAndOverride(t *testing.T) {
 	}
 }
 
+func TestGitHubDeviceRoundTrips(t *testing.T) {
+	p := devPaths(t)
+	c := Default(p)
+	if err := c.Set("github.device", "andrew-laptop"); err != nil {
+		t.Fatalf("set device: %v", err)
+	}
+	if err := Save(p, c); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	got, err := Load(p)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got.GitHub.Device != "andrew-laptop" {
+		t.Errorf("device = %q, want andrew-laptop (Load must merge it)", got.GitHub.Device)
+	}
+}
+
 func TestValidateRejectsBadMethodAndTarget(t *testing.T) {
 	p := devPaths(t)
 	c := Default(p)

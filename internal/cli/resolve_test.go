@@ -14,20 +14,20 @@ import (
 func testReg(t *testing.T) *registry.Registry {
 	t.Helper()
 	r := registry.New()
-	r.AddGroup(model.Group{Name: "Dripstone", Base: "/Volumes/Development"})
-	r.AddGroup(model.Group{Name: "Other", Base: "/Volumes/Development"})
-	r.AddProject(model.Project{Group: "Dripstone", Name: "app"})
+	r.AddGroup(model.Group{Name: "Acme", Base: "/base"})
+	r.AddGroup(model.Group{Name: "Other", Base: "/base"})
+	r.AddProject(model.Project{Group: "Acme", Name: "app"})
 	r.AddProject(model.Project{Group: "Other", Name: "app"})
 	return r
 }
 
 func TestResolveTargetUnique(t *testing.T) {
 	app := &App{UI: ui.NewWith(strings.NewReader(""), &bytes.Buffer{})}
-	tgt, err := app.resolveTarget(testReg(t), "Dripstone/app", false)
+	tgt, err := app.resolveTarget(testReg(t), "Acme/app", false)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	if tgt.Kind != resolver.KindProject || tgt.Project.Group != "Dripstone" {
+	if tgt.Kind != resolver.KindProject || tgt.Project.Group != "Acme" {
 		t.Errorf("got %+v", tgt)
 	}
 }
@@ -51,7 +51,7 @@ func TestResolveTargetAmbiguousPrompts(t *testing.T) {
 
 func TestResolveTargetGroupRejectedWhenProjectRequired(t *testing.T) {
 	app := &App{UI: ui.NewWith(strings.NewReader("y\n"), &bytes.Buffer{})}
-	_, err := app.resolveTarget(testReg(t), "Dripstone", false) // bare group, project required
+	_, err := app.resolveTarget(testReg(t), "Acme", false) // bare group, project required
 	if err == nil {
 		t.Fatal("expected group target to be rejected")
 	}

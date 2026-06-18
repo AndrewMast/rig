@@ -1,12 +1,10 @@
 # rig
 
 A single CLI to stand up, authenticate, navigate, and manage local coding
-projects. rig organizes checkouts into **groups**, derives every project path,
-manages **per-repo SSH deploy keys**, and produces the exact GitHub mutations a
+projects. rig organizes checkouts into groups, derives every project path,
+manages per-repo SSH deploy keys, and produces the exact GitHub mutations a
 project needs — delivered however you like (clipboard, file, or run directly
 with `gh`).
-
-> macOS, pure Go (no CGO), CLI only.
 
 ## Install
 

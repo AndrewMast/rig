@@ -10,30 +10,31 @@ import (
 func build(t *testing.T) *registry.Registry {
 	t.Helper()
 	r := registry.New()
-	must(t, r.AddGroup(model.Group{Name: "Dripstone", Base: "/Volumes/Development"}))
-	must(t, r.AddGroup(model.Group{Name: "Other", Base: "/Volumes/Development"}))
-	must(t, r.AddProject(model.Project{Group: "Dripstone", Name: "dripstone"}))
-	must(t, r.AddProject(model.Project{Group: "Dripstone", Name: "flutter-app", Aliases: []string{"fa"}}))
-	must(t, r.AddProject(model.Project{Group: "Other", Name: "flutter-app"})) // same name, two groups
+	must(t, r.AddGroup(model.Group{Name: "Acme", Base: "/base"}))
+	must(t, r.AddGroup(model.Group{Name: "Other", Base: "/base"}))
+	must(t, r.AddProject(model.Project{Group: "Acme", Name: "acme"}))
+	must(t, r.AddProject(model.Project{Group: "Acme", Name: "web-app", Aliases: []string{"fa"}}))
+	must(t, r.AddProject(model.Project{Group: "Other", Name: "web-app"})) // same name, two groups
 	return r
 }
 
 func TestProjectNameBeatsGroupName(t *testing.T) {
-	// Spec example: group Dripstone + project dripstone, no aliases → the project.
-	res := Resolve(build(t), "dripstone")
+	// Group "Acme" + project "acme" (same name, differ only by case), no
+	// aliases → resolves to the project.
+	res := Resolve(build(t), "acme")
 	if res.Stage != StageProjectName || !res.Unique() {
 		t.Fatalf("stage=%v unique=%v", res.Stage, res.Unique())
 	}
-	if res.Targets[0].Kind != KindProject || res.Targets[0].Project.Name != "dripstone" {
+	if res.Targets[0].Kind != KindProject || res.Targets[0].Project.Name != "acme" {
 		t.Errorf("resolved to %+v", res.Targets[0])
 	}
-	if res.Targets[0].Path != "/Volumes/Development/Dripstone/dripstone" {
+	if res.Targets[0].Path != "/base/Acme/acme" {
 		t.Errorf("path = %q", res.Targets[0].Path)
 	}
 }
 
 func TestExactFullID(t *testing.T) {
-	res := Resolve(build(t), "Other/flutter-app")
+	res := Resolve(build(t), "Other/web-app")
 	if res.Stage != StageFullID || !res.Unique() {
 		t.Fatalf("stage=%v unique=%v", res.Stage, res.Unique())
 	}
@@ -43,7 +44,7 @@ func TestExactFullID(t *testing.T) {
 }
 
 func TestAmbiguousProjectName(t *testing.T) {
-	res := Resolve(build(t), "flutter-app")
+	res := Resolve(build(t), "web-app")
 	if res.Stage != StageProjectName {
 		t.Fatalf("stage = %v", res.Stage)
 	}
@@ -57,7 +58,7 @@ func TestAlias(t *testing.T) {
 	if res.Stage != StageAlias || !res.Unique() {
 		t.Fatalf("stage=%v unique=%v", res.Stage, res.Unique())
 	}
-	if res.Targets[0].Project.Name != "flutter-app" || res.Targets[0].Project.Group != "Dripstone" {
+	if res.Targets[0].Project.Name != "web-app" || res.Targets[0].Project.Group != "Acme" {
 		t.Errorf("resolved to %+v", res.Targets[0].Project)
 	}
 }
@@ -75,13 +76,13 @@ func TestBareGroupNeedsConfirm(t *testing.T) {
 func TestFuzzyRanksPrefixFirst(t *testing.T) {
 	r := registry.New()
 	must(t, r.AddGroup(model.Group{Name: "G", Base: "/b"}))
-	must(t, r.AddProject(model.Project{Group: "G", Name: "flutter-app"}))
-	must(t, r.AddProject(model.Project{Group: "G", Name: "my-flutter-thing"}))
-	res := Resolve(r, "flut")
+	must(t, r.AddProject(model.Project{Group: "G", Name: "web-app"}))
+	must(t, r.AddProject(model.Project{Group: "G", Name: "my-web-thing"}))
+	res := Resolve(r, "web")
 	if res.Stage != StageFuzzy {
 		t.Fatalf("stage = %v", res.Stage)
 	}
-	if res.Targets[0].Project.Name != "flutter-app" {
+	if res.Targets[0].Project.Name != "web-app" {
 		t.Errorf("prefix match should rank first, got %q", res.Targets[0].Project.Name)
 	}
 }
@@ -94,13 +95,13 @@ func TestNoMatch(t *testing.T) {
 }
 
 func TestSubseqScoreOrdering(t *testing.T) {
-	prefix := subseqScore("fl", "flutter")
-	contig := subseqScore("ut", "flutter")
-	scattered := subseqScore("fr", "flutter")
+	prefix := subseqScore("we", "web")
+	contig := subseqScore("eb", "web")
+	scattered := subseqScore("wb", "web")
 	if !(prefix > contig && contig > scattered && scattered > 0) {
 		t.Errorf("ordering wrong: prefix=%d contig=%d scattered=%d", prefix, contig, scattered)
 	}
-	if subseqScore("zx", "flutter") != 0 {
+	if subseqScore("zx", "web") != 0 {
 		t.Error("non-subsequence should score 0")
 	}
 }

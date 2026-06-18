@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/AndrewMast/rig/internal/handoff"
 	"github.com/AndrewMast/rig/internal/keygen"
@@ -31,14 +32,29 @@ func newKeyID(reg *registry.Registry) (string, error) {
 	return "", fmt.Errorf("could not allocate a unique key id")
 }
 
-// keyTitle is the GitHub-side deploy-key title: host + id, for admin legibility.
-// The local Label is deliberately NOT included.
-func keyTitle(k model.Key) string {
+// keyTitle is the GitHub-side deploy-key title: device + id, for admin
+// legibility. The local Label is deliberately NOT included.
+func (a *App) keyTitle(k model.Key) string {
+	return fmt.Sprintf("rig:%s:%s", a.deviceName(), k.ID)
+}
+
+// deviceName is the configured github.device, or the short, lowercased hostname
+// when unset.
+func (a *App) deviceName() string {
+	if d := a.Config.GitHub.Device; d != "" {
+		return d
+	}
+	return defaultDevice()
+}
+
+// defaultDevice is the first DNS label of the hostname, lowercased (e.g.
+// "Andrews-MacBook-Pro.local" -> "andrews-macbook-pro").
+func defaultDevice() string {
 	host, err := os.Hostname()
 	if err != nil || host == "" {
-		host = "rig"
+		return "rig"
 	}
-	return fmt.Sprintf("rig:%s:%s", host, k.ID)
+	return strings.ToLower(strings.SplitN(host, ".", 2)[0])
 }
 
 // repoSSHURL is the standard SSH origin URL for a repo. The specific deploy key
@@ -71,7 +87,7 @@ func (a *App) mintKey(reg *registry.Registry, repo string, write bool, label str
 	mat, err := a.Keygen.Generate(keygen.Request{
 		SSHDir:  a.Paths.SSHDir,
 		KeyFile: k.KeyFile(),
-		Comment: keyTitle(k),
+		Comment: a.keyTitle(k),
 	})
 	if err != nil {
 		return nil, handoff.Mutation{}, err
@@ -79,7 +95,7 @@ func (a *App) mintKey(reg *registry.Registry, repo string, write bool, label str
 	if err := reg.AddKey(k); err != nil {
 		return nil, handoff.Mutation{}, err
 	}
-	mut := handoff.DeployKeyAdd(repo, keyTitle(k), mat.PublicKey, write)
+	mut := handoff.DeployKeyAdd(repo, a.keyTitle(k), mat.PublicKey, write)
 	return reg.FindKey(id), mut, nil
 }
 
@@ -220,7 +236,7 @@ func newKeyDeleteCmd() *cobra.Command {
 				return err
 			}
 			batch := handoff.Batch{Repo: k.Repo}
-			batch.Add(handoff.DeployKeyRemove(k.Repo, keyTitle(*k)))
+			batch.Add(handoff.DeployKeyRemove(k.Repo, app.keyTitle(*k)))
 			if err := app.deliver(cmd, batch); err != nil {
 				return err
 			}

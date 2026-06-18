@@ -19,6 +19,8 @@ func (c *Config) Get(key string) (string, error) {
 		return strconv.FormatBool(c.Handoff.AlwaysConfirm), nil
 	case "github.token_file":
 		return c.GitHub.TokenFile, nil
+	case "github.device":
+		return c.GitHub.Device, nil
 	case "guard.expected_user":
 		return c.Guard.ExpectedUser, nil
 	case "guard.expected_host":
@@ -54,6 +56,8 @@ func (c *Config) Set(key, val string) error {
 		c.Handoff.AlwaysConfirm = b
 	case "github.token_file":
 		c.GitHub.TokenFile = val
+	case "github.device":
+		c.GitHub.Device = val
 	case "guard.expected_user":
 		c.Guard.ExpectedUser = val
 	case "guard.expected_host":

@@ -9,16 +9,16 @@ import (
 
 func TestProjectIdentityIsGroupNamePair(t *testing.T) {
 	r := New()
-	mustAdd(t, r.AddProject(model.Project{Group: "Dripstone", Name: "app"}))
+	mustAdd(t, r.AddProject(model.Project{Group: "Acme", Name: "app"}))
 	mustAdd(t, r.AddProject(model.Project{Group: "Other", Name: "app"})) // same name, different group: allowed
 
-	if err := r.AddProject(model.Project{Group: "Dripstone", Name: "app"}); err == nil {
+	if err := r.AddProject(model.Project{Group: "Acme", Name: "app"}); err == nil {
 		t.Fatal("expected duplicate (group,name) to be refused")
 	}
 	if got := r.ProjectsByName("app"); len(got) != 2 {
 		t.Fatalf("ProjectsByName = %d, want 2", len(got))
 	}
-	if r.FindProject("dripstone", "APP") == nil {
+	if r.FindProject("acme", "APP") == nil {
 		t.Error("lookup should be case-insensitive")
 	}
 }
@@ -69,8 +69,8 @@ func TestStoreRoundTripAndAtomicity(t *testing.T) {
 	s := NewStore(path)
 
 	r := New()
-	mustAdd(t, r.AddGroup(model.Group{Name: "Dripstone", Base: "/Volumes/Development"}))
-	mustAdd(t, r.AddProject(model.Project{Group: "Dripstone", Name: "app", Strategy: model.StrategyLocal}))
+	mustAdd(t, r.AddGroup(model.Group{Name: "Acme", Base: "/base"}))
+	mustAdd(t, r.AddProject(model.Project{Group: "Acme", Name: "app", Strategy: model.StrategyLocal}))
 	if err := s.Save(r); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestStoreRoundTripAndAtomicity(t *testing.T) {
 	if got.Version != SchemaVersion {
 		t.Errorf("version = %d, want %d", got.Version, SchemaVersion)
 	}
-	if got.FindGroup("Dripstone") == nil || got.FindProject("Dripstone", "app") == nil {
+	if got.FindGroup("Acme") == nil || got.FindProject("Acme", "app") == nil {
 		t.Error("round-trip lost data")
 	}
 

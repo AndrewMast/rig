@@ -81,6 +81,22 @@ func TestKeyCreateAndList(t *testing.T) {
 	}
 }
 
+func TestKeyTitleUsesConfiguredDevice(t *testing.T) {
+	ta := newTestApp(t, "")
+	ta.Config.GitHub.Device = "andrew-laptop"
+	got := ta.keyTitle(model.Key{ID: "a1b2c3", Repo: "AndrewMast/gadget"})
+	if want := "rig:andrew-laptop:a1b2c3"; got != want {
+		t.Errorf("keyTitle = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultDeviceIsShortLowercase(t *testing.T) {
+	d := defaultDevice()
+	if d == "" || strings.Contains(d, ".") || d != strings.ToLower(d) {
+		t.Errorf("defaultDevice = %q, want short lowercased host (no domain)", d)
+	}
+}
+
 func TestProjectGuardToggle(t *testing.T) {
 	ta := newTestApp(t, "Acme\n\n")
 	reg := ta.reg(t)

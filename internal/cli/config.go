@@ -35,8 +35,12 @@ func newConfigShowCmd() *cobra.Command {
 			cmd.Printf("default_base = %q\n\n", app.Config.DefaultBase)
 			cmd.Printf("[handoff]\nmethod = %q\nalways_confirm = %v\n\n",
 				app.Config.Handoff.Method, app.Config.Handoff.AlwaysConfirm)
-			cmd.Printf("[github]\ntoken_file = %q  # %s\n\n",
-				app.Config.GitHub.TokenFile, tokenStatusWord(app))
+			device := app.Config.GitHub.Device
+			if device == "" {
+				device = defaultDevice() + "  (derived)"
+			}
+			cmd.Printf("[github]\ntoken_file = %q  # %s\ndevice = %q\n\n",
+				app.Config.GitHub.TokenFile, tokenStatusWord(app), device)
 			if u := app.Config.Guard.ExpectedUser; u != "" {
 				cmd.Printf("[guard]\nexpected_user = %q\nexpected_host = %q\n\n",
 					u, app.Config.Guard.ExpectedHost)

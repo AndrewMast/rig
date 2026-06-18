@@ -50,6 +50,9 @@ type Config struct {
 
 	GitHub struct {
 		TokenFile string `toml:"token_file"`
+		// Device labels deploy-key titles on GitHub (e.g. "rig:<device>:<id>").
+		// Empty means derive it from the short, lowercased hostname.
+		Device string `toml:"device,omitempty"`
 	} `toml:"github"`
 
 	Guard struct {
@@ -110,6 +113,9 @@ func Load(p Paths) (*Config, error) {
 	c.Handoff.AlwaysConfirm = file.Handoff.AlwaysConfirm
 	if file.GitHub.TokenFile != "" {
 		c.GitHub.TokenFile = file.GitHub.TokenFile
+	}
+	if file.GitHub.Device != "" {
+		c.GitHub.Device = file.GitHub.Device
 	}
 	c.Guard = file.Guard
 	for name, l := range file.Launchers {

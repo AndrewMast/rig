@@ -7,8 +7,8 @@ import (
 )
 
 func TestDeployKeyAddCommand(t *testing.T) {
-	m := DeployKeyAdd("AndrewMast/dripstone", "rig host abc", "ssh-ed25519 AAAA test", false)
-	if !strings.Contains(m.Command, "repos/AndrewMast/dripstone/keys") {
+	m := DeployKeyAdd("AndrewMast/gadget", "rig host abc", "ssh-ed25519 AAAA test", false)
+	if !strings.Contains(m.Command, "repos/AndrewMast/gadget/keys") {
 		t.Errorf("command missing repo path: %s", m.Command)
 	}
 	if !strings.Contains(m.Command, "read_only=true") {
