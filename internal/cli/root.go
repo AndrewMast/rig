@@ -24,8 +24,19 @@ func newRootCmd() *cobra.Command {
 	}
 	root.SetVersionTemplate("rig {{.Version}}\n")
 
+	// Build the shared app context once, before any command runs.
+	root.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		app, err := newApp()
+		if err != nil {
+			return err
+		}
+		cmd.SetContext(withApp(cmd.Context(), app))
+		return nil
+	}
+
 	// Command groups are registered here as they come online.
 	root.AddCommand(newSelfCmd())
+	root.AddCommand(newConfigCmd())
 
 	return root
 }
