@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - `rig status` now flags a bound deploy key that is still pending and points to
   `rig key verify`.
+- `rig project key` now takes an optional `group/name` and defaults to the
+  project containing the current directory, like `rig project origin`.
 
 ## [0.0.1] - 2026-06-18
 

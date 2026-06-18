@@ -25,16 +25,26 @@ func (a *App) loadProject(reg *registry.Registry, token string) (*model.Project,
 
 func newProjectKeyCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "key <group/name>",
+		Use:   "key [group/name]",
 		Short: "Pick, create, or re-bind the project's deploy key (+ guard)",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
-			p, err := app.loadProject(reg, args[0])
+			token := ""
+			if len(args) == 1 {
+				token = args[0]
+			} else {
+				tok, ok := projectTokenForCwd(app)
+				if !ok {
+					return fmt.Errorf("not inside a project; pass a group/name")
+				}
+				token = tok
+			}
+			p, err := app.loadProject(reg, token)
 			if err != nil {
 				return err
 			}

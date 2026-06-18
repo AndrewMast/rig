@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -147,6 +148,42 @@ func TestDefaultDeviceIsShortLowercase(t *testing.T) {
 	d := defaultDevice()
 	if d == "" || strings.Contains(d, ".") || d != strings.ToLower(d) {
 		t.Errorf("defaultDevice = %q, want short lowercased host (no domain)", d)
+	}
+}
+
+func TestProjectKeyDefaultsToCwd(t *testing.T) {
+	// stdin: clone group name + confirm, then an empty line selecting the first
+	// (existing) key in `project key`'s picker.
+	ta := newTestApp(t, "Acme\n\n\n")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+
+	reg = ta.reg(t)
+	p := reg.FindProject("Acme", "widget")
+	dir := p.Path(*reg.FindGroup("Acme"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	// No group/name argument: it should resolve the project from the cwd.
+	if _, err := ta.run(t, "project", "key"); err != nil {
+		t.Fatalf("project key (cwd): %v", err)
+	}
+	if got := ta.reg(t).FindProject("Acme", "widget").KeyID; got != "abc123" {
+		t.Errorf("bound key = %q, want abc123", got)
+	}
+}
+
+func TestProjectKeyNoArgsOutsideProjectErrors(t *testing.T) {
+	ta := newTestApp(t, "")
+	_, err := ta.run(t, "project", "key")
+	if err == nil || !strings.Contains(err.Error(), "not inside a project") {
+		t.Errorf("expected not-inside-a-project error, got %v", err)
 	}
 }
 
