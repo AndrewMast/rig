@@ -84,9 +84,9 @@ elif [ -n "$REQUIRE_ATTESTATION" ]; then
 elif [ -n "$WITHOUT_ATTESTATION" ]; then
   note "skipping attestation (--without-attestation)"
 else
-  if [ -t 0 ]; then
-    printf "gh not found; install with checksum verification only? [y/N] "
-    read -r ans
+  if [ -e /dev/tty ]; then
+    printf "gh not found; install with checksum verification only? [y/N] " > /dev/tty
+    read -r ans < /dev/tty
     case "$ans" in y|Y|yes) ;; *) err "aborted" ;; esac
   else
     note "gh not found, non-interactive: continuing on checksum only"
@@ -112,9 +112,9 @@ source_line="[ -f \"\$HOME/.config/rig/rig.sh\" ] && source \"\$HOME/.config/rig
 
 if [ ! -f "$zshrc" ] || ! grep -qF "/.config/rig/rig.sh" "$zshrc"; then
   do_it=""
-  if [ -t 0 ]; then
-    printf "Enable shell integration (rig cd + completions) in ~/.zshrc? [Y/n] "
-    read -r ans
+  if [ -e /dev/tty ]; then
+    printf "Enable shell integration (rig cd + completions) in ~/.zshrc? [Y/n] " > /dev/tty
+    read -r ans < /dev/tty
     case "$ans" in n|N|no) ;; *) do_it=1 ;; esac
   fi
   if [ -n "$do_it" ]; then
