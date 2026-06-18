@@ -9,6 +9,7 @@ import (
 	"github.com/AndrewMast/rig/internal/git"
 	"github.com/AndrewMast/rig/internal/keygen"
 	"github.com/AndrewMast/rig/internal/registry"
+	"github.com/AndrewMast/rig/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +25,7 @@ type App struct {
 	GH     gh.GH
 	Keygen keygen.Keygen
 	Clock  clock.Clock
+	UI     *ui.UI
 }
 
 // newApp resolves paths and loads config. It is called once per invocation from
@@ -45,6 +47,7 @@ func newApp() (*App, error) {
 		GH:     gh.New(gh.LoadToken(cfg.TokenFile(paths))),
 		Keygen: keygen.New(),
 		Clock:  clock.Real{},
+		UI:     ui.New(),
 	}, nil
 }
 
