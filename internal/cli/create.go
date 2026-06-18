@@ -52,7 +52,7 @@ func newCreateCmd() *cobra.Command {
 			if err := app.Git.Init(context.Background(), path); err != nil {
 				return err
 			}
-			if err := app.runHook(g, &p, "create"); err != nil {
+			if err := app.runHook(reg, g, &p, "create"); err != nil {
 				return err
 			}
 			if err := reg.AddProject(p); err != nil {

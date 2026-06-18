@@ -101,7 +101,7 @@ func newTypeRunCmd(name string) *cobra.Command {
 			if cmdline == "" {
 				return fmt.Errorf("no command %q defined for %s", name, p.ID())
 			}
-			return app.runInProject(g, p, cmdline)
+			return app.runInProject(reg, g, p, cmdline)
 		},
 	}
 }

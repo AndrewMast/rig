@@ -83,7 +83,7 @@ func newAdoptCmd() *cobra.Command {
 				Strategy: model.StrategyLocal,
 				State:    model.StateActive,
 			}
-			if err := app.runHook(g, &p, "setup"); err != nil {
+			if err := app.runHook(reg, g, &p, "setup"); err != nil {
 				return err
 			}
 			if err := reg.AddProject(p); err != nil {
