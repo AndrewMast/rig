@@ -67,6 +67,16 @@ func (a *App) materialize(cmd *cobra.Command, reg *registry.Registry, p *model.P
 	return nil
 }
 
+// pendingBoundKey reports whether the project's bound deploy key is still
+// pending verification.
+func (a *App) pendingBoundKey(reg *registry.Registry, p *model.Project) bool {
+	if p.Strategy != model.StrategyDeployKey {
+		return false
+	}
+	k := reg.FindKey(p.KeyID)
+	return k != nil && k.State == model.StatePending
+}
+
 // projectKeyPath returns the private-key path for a deploy-key project, or ""
 // when the project has no bound key (public or local-only).
 func (a *App) projectKeyPath(reg *registry.Registry, p *model.Project) string {
@@ -135,7 +145,11 @@ func newProjectFinishCmd() *cobra.Command {
 			if p == nil {
 				return fmt.Errorf("project %q not found", args[0])
 			}
-			if p.State == model.StateActive {
+			// A project can be active while a freshly (re)bound key is still
+			// pending — e.g. after `rig project key` mints a key the handoff
+			// hasn't verified yet. Re-run verification in that case rather than
+			// short-circuiting, so finish promotes the stranded key.
+			if p.State == model.StateActive && !app.pendingBoundKey(reg, p) {
 				cmd.Printf("%s is already active\n", p.ID())
 				return nil
 			}

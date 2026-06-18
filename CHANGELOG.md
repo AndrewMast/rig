@@ -10,10 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - `rig key verify [id | owner/repo]` probes a deploy key over SSH and promotes
   it from pending to active. With no argument it verifies the current project's
-  bound key; an `owner/repo` verifies every key for that repo. This fills the gap
-  where a key rebound onto an already-active project (via `rig project key`)
-  stayed pending, since `rig project finish` short-circuits once a project is
-  active.
+  bound key; an `owner/repo` verifies every key for that repo.
 
 ### Changed
 
@@ -21,6 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
   `rig key verify`.
 - `rig project key` now takes an optional `group/name` and defaults to the
   project containing the current directory, like `rig project origin`.
+
+### Fixed
+
+- `rig project finish` now re-verifies and promotes a bound deploy key that is
+  still pending even when the project is already active, instead of
+  short-circuiting and leaving the key stuck.
 
 ## [0.0.1] - 2026-06-18
 

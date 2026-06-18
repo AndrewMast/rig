@@ -187,6 +187,31 @@ func TestProjectKeyNoArgsOutsideProjectErrors(t *testing.T) {
 	}
 }
 
+func TestProjectFinishVerifiesPendingBoundKey(t *testing.T) {
+	ta := newTestApp(t, "Acme\n\n")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+
+	// An active project whose freshly-rebound key is still pending — finish must
+	// not short-circuit on "already active"; it must re-verify and promote.
+	reg = ta.reg(t)
+	p := reg.FindProject("Acme", "widget")
+	p.State = model.StateActive
+	reg.FindKey(p.KeyID).State = model.StatePending
+	ta.SaveRegistry(reg)
+
+	if _, err := ta.run(t, "project", "finish", "Acme/widget"); err != nil {
+		t.Fatalf("project finish: %v", err)
+	}
+	if got := ta.reg(t).FindKey("abc123").State; got != model.StateActive {
+		t.Errorf("key state = %s, want active (finish should re-verify a pending key)", got)
+	}
+}
+
 func TestProjectGuardToggle(t *testing.T) {
 	ta := newTestApp(t, "Acme\n\n")
 	reg := ta.reg(t)
