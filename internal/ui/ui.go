@@ -93,6 +93,10 @@ func (u *UI) Input(prompt, def string) (string, error) {
 	}
 	line, err := u.buf().ReadString('\n')
 	if err != nil && line == "" {
+		// EOF with a default available: fall back to it (matches Confirm).
+		if def != "" {
+			return def, nil
+		}
 		return "", err
 	}
 	line = strings.TrimSpace(line)
