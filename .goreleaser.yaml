@@ -37,6 +37,3 @@ release:
   github:
     owner: AndrewMast
     name: rig
-
-changelog:
-  disable: true
