@@ -92,3 +92,26 @@ func (c *Client) RepoExists(ctx context.Context, owner, repo string) (bool, erro
 		return false, fmt.Errorf("github repo lookup: HTTP %d", code)
 	}
 }
+
+// RepoPublic reports whether owner/repo is public. A 404 (private or missing,
+// when seen anonymously) is reported as not-public without error.
+func (c *Client) RepoPublic(ctx context.Context, owner, repo string) (bool, error) {
+	code, body, err := c.get(ctx, "/repos/"+owner+"/"+repo)
+	if err != nil {
+		return false, err
+	}
+	switch code {
+	case http.StatusOK:
+		var r struct {
+			Private bool `json:"private"`
+		}
+		if err := json.Unmarshal(body, &r); err != nil {
+			return false, fmt.Errorf("parse repo: %w", err)
+		}
+		return !r.Private, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("github repo lookup: HTTP %d", code)
+	}
+}

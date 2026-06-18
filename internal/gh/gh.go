@@ -21,6 +21,9 @@ type GH interface {
 	Login(ctx context.Context) (string, error)
 	// RepoExists reports whether owner/repo exists and is visible.
 	RepoExists(ctx context.Context, owner, repo string) (bool, error)
+	// RepoPublic reports whether owner/repo exists and is public (not private).
+	// It works without a token, since public repos are visible anonymously.
+	RepoPublic(ctx context.Context, owner, repo string) (bool, error)
 }
 
 // LoadToken returns the metadata token: RIG_GH_TOKEN wins, else the trimmed

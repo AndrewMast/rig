@@ -132,6 +132,57 @@ func TestCloneGHDirectAutoFinishes(t *testing.T) {
 	}
 }
 
+func TestCloneOffersPublicAndSkipsKey(t *testing.T) {
+	// stdin: group, name (default), then accept the "clone over HTTPS?" offer.
+	ta := newTestApp(t, "Acme\n\ny\n")
+	ta.ghFake.PublicRepo["AndrewMast/widget"] = true
+
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+	p := ta.reg(t).FindProject("Acme", "widget")
+	if p.Strategy != model.StrategyPublic {
+		t.Errorf("accepting the offer should switch to public, got %s", p.Strategy)
+	}
+	if len(ta.keyFake.Generated) != 0 {
+		t.Errorf("public clone should mint no key, minted %d", len(ta.keyFake.Generated))
+	}
+	if !hasCall(ta.gitFake, "clone https://github.com/AndrewMast/widget.git") {
+		t.Errorf("expected HTTPS clone; calls=%v", ta.gitFake.Calls)
+	}
+}
+
+func TestCloneReadDeclinePublicKeepsDeployKey(t *testing.T) {
+	// Public repo, but the user declines the offer and keeps the read key.
+	ta := newTestApp(t, "Acme\n\nn\n")
+	ta.ghFake.PublicRepo["AndrewMast/widget"] = true
+
+	if _, err := ta.run(t, "clone", "--read", "AndrewMast/widget"); err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+	p := ta.reg(t).FindProject("Acme", "widget")
+	if p.Strategy != model.StrategyDeployKey {
+		t.Errorf("declining should keep deploy-key, got %s", p.Strategy)
+	}
+	if len(ta.keyFake.Generated) != 1 {
+		t.Errorf("expected a read key to be minted, got %d", len(ta.keyFake.Generated))
+	}
+	if !p.Guard {
+		t.Error("read clone should remain push-guarded")
+	}
+}
+
+func TestClonePrivateRepoNoOffer(t *testing.T) {
+	// Not public → no offer, mints a key as usual (no extra stdin needed).
+	ta := newTestApp(t, "Acme\n\n")
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+	if len(ta.keyFake.Generated) != 1 {
+		t.Errorf("private clone should mint a key, got %d", len(ta.keyFake.Generated))
+	}
+}
+
 func hasCall(f *git.Fake, prefix string) bool {
 	for _, c := range f.Calls {
 		if strings.HasPrefix(c, prefix) {

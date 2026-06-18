@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/AndrewMast/rig/internal/handoff"
@@ -56,6 +57,21 @@ func newCloneCmd() *cobra.Command {
 			}
 
 			p := model.Project{Group: g.Name, Name: name, Type: typ, Repo: repo}
+
+			// Detect-and-offer: when a key-based strategy is about to provision a
+			// deploy key for a repo that's actually public, offer the keyless
+			// HTTPS path instead. Best-effort — a failed/anonymous check just
+			// proceeds with the key. Skipped when --public was already chosen.
+			if !public {
+				if isPub, err := app.GH.RepoPublic(context.Background(), owner, repoName); err == nil && isPub {
+					ok, err := app.UI.Confirm(
+						fmt.Sprintf("%s is public — clone over HTTPS without a deploy key?", repo), true)
+					if err != nil {
+						return err
+					}
+					public = ok
+				}
+			}
 
 			switch {
 			case public:
