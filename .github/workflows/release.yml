@@ -29,15 +29,16 @@ jobs:
             exit 1
           fi
           chmod +x scripts/extract-changelog.sh
-          scripts/extract-changelog.sh "$version" > RELEASE_NOTES.md
+          # Write notes outside the repo so GoReleaser doesn't see a dirty tree.
+          scripts/extract-changelog.sh "$version" > "$RUNNER_TEMP/RELEASE_NOTES.md"
           echo "Release notes:"
-          cat RELEASE_NOTES.md
+          cat "$RUNNER_TEMP/RELEASE_NOTES.md"
 
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean --release-notes=RELEASE_NOTES.md
+          args: release --clean --release-notes=${{ runner.temp }}/RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
