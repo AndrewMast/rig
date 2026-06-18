@@ -18,7 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
   auto-vivification and smart name-collision suggestions. `clone` detects a
   public repo and offers the keyless HTTPS path instead of a deploy key.
 - Multi-key deploy-key model: many keys per repo, read and write as independent
-  key objects; `rig key create/list/delete`.
+  key objects; `rig key create/list/delete`. The bound key is pinned per project
+  via the repo's local `core.sshCommand` (standard `git@github.com` origin URLs,
+  no global `~/.ssh/config` edits).
 - Per-project push guard (the `no_push` sentinel) via `rig project guard`, plus
   `rig project key/origin/upstream/finish/delete/alias`. `origin add` reads a
   smart `owner/repo` argument inside a project and demotes a prior source to

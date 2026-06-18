@@ -86,14 +86,15 @@ func newProjectKeyCmd() *cobra.Command {
 					return err
 				}
 			}
-			// Re-point origin and apply the guard for an active checkout.
+			// Re-point the key (origin URL is the same for any key of a repo)
+			// and apply the guard for an active checkout.
 			g := reg.FindGroup(p.Group)
 			path := p.Path(*g)
-			url := app.remoteURLFor(reg, p)
-			if err := app.Git.SetRemoteURL(context.Background(), path, "origin", url); err != nil {
-				return err
+			ctx := context.Background()
+			if err := app.Git.SetSSHCommand(ctx, path, app.keyPath(*chosen)); err != nil {
+				cmd.Printf("note: %v\n", err)
 			}
-			if err := app.applyGuard(context.Background(), reg, p, path); err != nil {
+			if err := app.applyGuard(ctx, reg, p, path); err != nil {
 				cmd.Printf("note: %v\n", err)
 			}
 			cmd.Printf("bound %s to key %s (%s); push guard %s\n", p.ID(), chosen.ID, chosen.Access(), onOff(p.Guard))
@@ -306,16 +307,20 @@ func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Pro
 		cmd.Printf("demoted %s to upstream\n", oldRepo)
 	}
 
-	// Wire the (new) origin remote on the existing checkout.
+	// Wire the (new) origin remote on the existing checkout and pin the key.
 	url := a.remoteURLFor(reg, p)
 	if err := a.Git.AddRemote(ctx, path, "origin", url); err != nil {
 		// Already present? fall back to set-url.
 		_ = a.Git.SetRemoteURL(ctx, path, "origin", url)
 	}
+	sshKey := a.keyPath(*key)
+	if err := a.Git.SetSSHCommand(ctx, path, sshKey); err != nil {
+		return err
+	}
 
 	if method == "gh" {
 		key.State = model.StateActive
-		if err := a.Git.LsRemote(ctx, url); err != nil {
+		if err := a.Git.LsRemote(ctx, path, url, sshKey); err != nil {
 			return fmt.Errorf("verification failed: %w", err)
 		}
 		p.State = model.StateActive

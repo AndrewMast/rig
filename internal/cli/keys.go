@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/AndrewMast/rig/internal/handoff"
@@ -40,9 +41,15 @@ func keyTitle(k model.Key) string {
 	return fmt.Sprintf("rig:%s:%s", host, k.ID)
 }
 
-// keyRemoteURL is the SSH origin URL routed through the key's Host alias.
-func keyRemoteURL(k model.Key) string {
-	return fmt.Sprintf("git@%s:%s.git", k.HostAlias(), k.Repo)
+// repoSSHURL is the standard SSH origin URL for a repo. The specific deploy key
+// is selected per-repo via the local git config (core.sshCommand), not the URL.
+func repoSSHURL(repo string) string {
+	return fmt.Sprintf("git@github.com:%s.git", repo)
+}
+
+// keyPath is the absolute private-key path for a key.
+func (a *App) keyPath(k model.Key) string {
+	return filepath.Join(a.Paths.SSHDir, k.KeyFile())
 }
 
 // mintKey allocates a new deploy key: it generates the SSH material and Host
@@ -62,10 +69,9 @@ func (a *App) mintKey(reg *registry.Registry, repo string, write bool, label str
 		Label: label,
 	}
 	mat, err := a.Keygen.Generate(keygen.Request{
-		SSHDir:    a.Paths.SSHDir,
-		KeyFile:   k.KeyFile(),
-		HostAlias: k.HostAlias(),
-		Comment:   keyTitle(k),
+		SSHDir:  a.Paths.SSHDir,
+		KeyFile: k.KeyFile(),
+		Comment: keyTitle(k),
 	})
 	if err != nil {
 		return nil, handoff.Mutation{}, err
@@ -115,7 +121,7 @@ func newKeyCreateCmd() *cobra.Command {
 				return err
 			}
 			// Best-effort verification: the key reads once GitHub has it.
-			if app.Git.LsRemote(context.Background(), keyRemoteURL(*k)) == nil {
+			if app.Git.LsRemote(context.Background(), "", repoSSHURL(k.Repo), app.keyPath(*k)) == nil {
 				k.State = model.StateActive
 				_ = app.SaveRegistry(reg)
 				cmd.Printf("key %s (%s) verified for %s\n", k.ID, k.Access(), k.Repo)
@@ -208,9 +214,8 @@ func newKeyDeleteCmd() *cobra.Command {
 
 			// Remove SSH artifacts and queue the GitHub-side removal.
 			if err := app.Keygen.Remove(keygen.Request{
-				SSHDir:    app.Paths.SSHDir,
-				KeyFile:   k.KeyFile(),
-				HostAlias: k.HostAlias(),
+				SSHDir:  app.Paths.SSHDir,
+				KeyFile: k.KeyFile(),
 			}); err != nil {
 				return err
 			}

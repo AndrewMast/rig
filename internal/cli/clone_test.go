@@ -183,6 +183,34 @@ func TestClonePrivateRepoNoOffer(t *testing.T) {
 	}
 }
 
+func TestCloneUsesLocalSSHCommandAndStandardURL(t *testing.T) {
+	ta := newTestApp(t, "Acme\n\n")
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+	g := ta.reg(t).FindGroup("Acme")
+	p := ta.reg(t).FindProject("Acme", "widget")
+	path := p.Path(*g)
+
+	// Origin URL is the plain github SSH URL — no per-key host alias.
+	if got := ta.gitFake.RemotesByDir[path]["origin"].Fetch; got != "git@github.com:AndrewMast/widget.git" {
+		t.Errorf("origin URL = %q, want plain git@github.com URL", got)
+	}
+	// The deploy key is pinned into the repo's local config (the fake records
+	// the key path that was pinned).
+	keyPinned := ta.gitFake.SSHCommandByDir[path]
+	if !strings.Contains(keyPinned, "project_andrewmast-widget_abc123_deploy") {
+		t.Errorf("pinned key = %q, want the bound deploy key", keyPinned)
+	}
+	// The real value written to core.sshCommand pins that key only.
+	if got := git.SSHCommand(keyPinned); !strings.Contains(got, "IdentitiesOnly=yes") {
+		t.Errorf("SSHCommand = %q, want IdentitiesOnly=yes", got)
+	}
+}
+
 func hasCall(f *git.Fake, prefix string) bool {
 	for _, c := range f.Calls {
 		if strings.HasPrefix(c, prefix) {

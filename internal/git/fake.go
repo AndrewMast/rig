@@ -10,8 +10,9 @@ import (
 type Fake struct {
 	Calls []string // ordered "op arg arg" log
 
-	RemotesByDir map[string]map[string]Remote
-	StatusByDir  map[string]Status
+	RemotesByDir    map[string]map[string]Remote
+	StatusByDir     map[string]Status
+	SSHCommandByDir map[string]string // dir -> persisted core.sshCommand
 
 	// LsRemoteErr keyed by URL; PushErr keyed by dir. Absent = success.
 	LsRemoteErr map[string]error
@@ -39,9 +40,26 @@ func (f *Fake) remotes(dir string) map[string]Remote {
 	return f.RemotesByDir[dir]
 }
 
-func (f *Fake) Clone(_ context.Context, url, dest string) error {
+// SSHCommandByDir records the persisted core.sshCommand per repo dir.
+func (f *Fake) Clone(_ context.Context, url, dest, sshKey string) error {
 	f.log("clone %s %s", url, dest)
+	if sshKey != "" {
+		f.setSSH(dest, sshKey)
+	}
 	return nil
+}
+
+func (f *Fake) SetSSHCommand(_ context.Context, dir, sshKey string) error {
+	f.log("set-sshcommand %s %s", dir, sshKey)
+	f.setSSH(dir, sshKey)
+	return nil
+}
+
+func (f *Fake) setSSH(dir, sshKey string) {
+	if f.SSHCommandByDir == nil {
+		f.SSHCommandByDir = map[string]string{}
+	}
+	f.SSHCommandByDir[dir] = sshKey
 }
 
 func (f *Fake) Init(_ context.Context, dir string) error {
@@ -84,7 +102,7 @@ func (f *Fake) SetPushURL(_ context.Context, dir, name, url string) error {
 	return nil
 }
 
-func (f *Fake) LsRemote(_ context.Context, url string) error {
+func (f *Fake) LsRemote(_ context.Context, dir, url, sshKey string) error {
 	f.log("ls-remote %s", url)
 	return f.LsRemoteErr[url]
 }

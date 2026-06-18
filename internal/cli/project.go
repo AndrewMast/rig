@@ -28,20 +28,27 @@ func (a *App) materialize(cmd *cobra.Command, reg *registry.Registry, p *model.P
 	ctx := context.Background()
 	path := sp.Path(*g)
 	url := a.remoteURLFor(reg, sp)
+	sshKey := a.projectKeyPath(reg, sp) // "" for public/local
 
 	// Clone unless the checkout already exists.
 	if _, err := os.Stat(filepath.Join(path, ".git")); os.IsNotExist(err) {
 		if url == "" {
 			return fmt.Errorf("no remote URL for %s", sp.ID())
 		}
-		if err := a.Git.Clone(ctx, url, path); err != nil {
+		if err := a.Git.Clone(ctx, url, path, sshKey); err != nil {
+			return err
+		}
+	} else if sshKey != "" {
+		// Existing checkout (e.g. a hosted local project): pin the deploy key
+		// into the repo's local config.
+		if err := a.Git.SetSSHCommand(ctx, path, sshKey); err != nil {
 			return err
 		}
 	}
 
 	// Verify read access over SSH/HTTPS (repo exists + key reads).
 	if url != "" {
-		if err := a.Git.LsRemote(ctx, url); err != nil {
+		if err := a.Git.LsRemote(ctx, path, url, sshKey); err != nil {
 			return fmt.Errorf("verification failed (repo unreachable / key not added yet): %w", err)
 		}
 	}
@@ -58,6 +65,18 @@ func (a *App) materialize(cmd *cobra.Command, reg *registry.Registry, p *model.P
 	*p = *sp
 	cmd.Printf("finished %s at %s\n", sp.ID(), path)
 	return nil
+}
+
+// projectKeyPath returns the private-key path for a deploy-key project, or ""
+// when the project has no bound key (public or local-only).
+func (a *App) projectKeyPath(reg *registry.Registry, p *model.Project) string {
+	if p.Strategy != model.StrategyDeployKey {
+		return ""
+	}
+	if k := reg.FindKey(p.KeyID); k != nil {
+		return a.keyPath(*k)
+	}
+	return ""
 }
 
 // applyGuard sets or lifts the per-project push guard to match p.Guard, and for

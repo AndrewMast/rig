@@ -173,9 +173,8 @@ func (a *App) remoteURLFor(reg *registry.Registry, p *model.Project) string {
 	case model.StrategyPublic:
 		return "https://github.com/" + p.Repo + ".git"
 	case model.StrategyDeployKey:
-		if k := reg.FindKey(p.KeyID); k != nil {
-			return keyRemoteURL(*k)
-		}
+		// Standard URL; the bound key is applied via the repo's core.sshCommand.
+		return repoSSHURL(p.Repo)
 	}
 	return ""
 }

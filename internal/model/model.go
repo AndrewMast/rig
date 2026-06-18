@@ -112,11 +112,6 @@ func (k Key) KeyFile() string {
 	return fmt.Sprintf("project_%s_%s_deploy", k.Slug, k.ID)
 }
 
-// HostAlias is the ssh config Host alias used by this key's origin URL.
-func (k Key) HostAlias() string {
-	return fmt.Sprintf("github.com-%s-%s", k.Slug, k.ID)
-}
-
 // SlugForRepo turns "owner/repo" into a filesystem/host-safe slug.
 func SlugForRepo(repo string) string {
 	s := strings.ToLower(repo)

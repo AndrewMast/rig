@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -17,9 +18,17 @@ func New() Exec { return Exec{} }
 
 // run executes git in dir (empty dir = current) and returns trimmed stdout.
 func (e Exec) run(ctx context.Context, dir string, args ...string) (string, error) {
+	return e.runEnv(ctx, dir, nil, args...)
+}
+
+// runEnv is run with extra environment entries (e.g. GIT_SSH_COMMAND).
+func (e Exec) runEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	if dir != "" {
 		cmd.Dir = dir
+	}
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -34,8 +43,28 @@ func (e Exec) run(ctx context.Context, dir string, args ...string) (string, erro
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func (e Exec) Clone(ctx context.Context, url, dest string) error {
-	_, err := e.run(ctx, "", "clone", url, dest)
+func (e Exec) Clone(ctx context.Context, url, dest, sshKey string) error {
+	var env []string
+	if sshKey != "" {
+		env = []string{"GIT_SSH_COMMAND=" + SSHCommand(sshKey)}
+	}
+	if _, err := e.runEnv(ctx, "", env, "clone", url, dest); err != nil {
+		return err
+	}
+	// Persist the key into the new checkout so future fetch/push use it.
+	if sshKey != "" {
+		return e.SetSSHCommand(ctx, dest, sshKey)
+	}
+	return nil
+}
+
+func (e Exec) SetSSHCommand(ctx context.Context, dir, sshKey string) error {
+	if sshKey == "" {
+		// Tolerate "not set" (git exits non-zero when the key is absent).
+		_, _ = e.run(ctx, dir, "config", "--unset", "core.sshCommand")
+		return nil
+	}
+	_, err := e.run(ctx, dir, "config", "core.sshCommand", SSHCommand(sshKey))
 	return err
 }
 
@@ -88,8 +117,16 @@ func (e Exec) SetPushURL(ctx context.Context, dir, name, url string) error {
 	return err
 }
 
-func (e Exec) LsRemote(ctx context.Context, url string) error {
-	_, err := e.run(ctx, "", "ls-remote", url)
+func (e Exec) LsRemote(ctx context.Context, dir, url, sshKey string) error {
+	var env []string
+	if sshKey != "" {
+		env = []string{"GIT_SSH_COMMAND=" + SSHCommand(sshKey)}
+	}
+	target := url
+	if target == "" {
+		target = "origin"
+	}
+	_, err := e.runEnv(ctx, dir, env, "ls-remote", target)
 	return err
 }
 

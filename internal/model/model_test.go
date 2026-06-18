@@ -22,9 +22,6 @@ func TestKeyArtifactsDeriveFromID(t *testing.T) {
 	if got, want := k.KeyFile(), "project_andrewmast-dripstone_a1b2c3_deploy"; got != want {
 		t.Errorf("key file = %q, want %q", got, want)
 	}
-	if got, want := k.HostAlias(), "github.com-andrewmast-dripstone-a1b2c3"; got != want {
-		t.Errorf("host alias = %q, want %q", got, want)
-	}
 	if got, want := k.Access(), "write"; got != want {
 		t.Errorf("access = %q, want %q", got, want)
 	}

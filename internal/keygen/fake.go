@@ -7,8 +7,8 @@ import "fmt"
 type Fake struct {
 	Generated []Request
 	Removed   []Request
-	// Keys maps HostAlias to a canned public key; a default is returned when
-	// no entry exists.
+	// Keys maps KeyFile to a canned public key; a default is returned when no
+	// entry exists.
 	Keys map[string]string
 }
 
@@ -18,10 +18,10 @@ func NewFake() *Fake { return &Fake{Keys: map[string]string{}} }
 // Generate records the request and returns a deterministic public key.
 func (f *Fake) Generate(r Request) (Material, error) {
 	f.Generated = append(f.Generated, r)
-	pub := f.Keys[r.HostAlias]
+	pub := f.Keys[r.KeyFile]
 	if pub == "" {
-		pub = fmt.Sprintf("ssh-ed25519 AAAAFAKE-%s %s", r.HostAlias, r.Comment)
-		f.Keys[r.HostAlias] = pub
+		pub = fmt.Sprintf("ssh-ed25519 AAAAFAKE-%s %s", r.KeyFile, r.Comment)
+		f.Keys[r.KeyFile] = pub
 	}
 	priv := r.SSHDir + "/" + r.KeyFile
 	return Material{PrivPath: priv, PubPath: priv + ".pub", PublicKey: pub}, nil
@@ -30,14 +30,14 @@ func (f *Fake) Generate(r Request) (Material, error) {
 // Remove records the removal.
 func (f *Fake) Remove(r Request) error {
 	f.Removed = append(f.Removed, r)
-	delete(f.Keys, r.HostAlias)
+	delete(f.Keys, r.KeyFile)
 	return nil
 }
 
-// PublicKey returns the canned key for the request's host alias.
+// PublicKey returns the canned key for the request's key file.
 func (f *Fake) PublicKey(r Request) (string, error) {
-	if pub, ok := f.Keys[r.HostAlias]; ok {
+	if pub, ok := f.Keys[r.KeyFile]; ok {
 		return pub, nil
 	}
-	return "", fmt.Errorf("no key for %s", r.HostAlias)
+	return "", fmt.Errorf("no key for %s", r.KeyFile)
 }

@@ -28,7 +28,9 @@ type Status struct {
 
 // Git is the set of git operations rig needs.
 type Git interface {
-	Clone(ctx context.Context, url, dest string) error
+	// Clone clones url into dest. When sshKey is non-empty, the clone uses that
+	// deploy key and persists it as the new repo's local core.sshCommand.
+	Clone(ctx context.Context, url, dest, sshKey string) error
 	Init(ctx context.Context, dir string) error
 
 	Remotes(ctx context.Context, dir string) (map[string]Remote, error)
@@ -38,12 +40,23 @@ type Git interface {
 	SetRemoteURL(ctx context.Context, dir, name, url string) error
 	// SetPushURL sets only the push URL (used for the no_push guard).
 	SetPushURL(ctx context.Context, dir, name, url string) error
+	// SetSSHCommand persists (or, with an empty key, clears) the repo's local
+	// core.sshCommand so all of its git traffic uses the bound deploy key.
+	SetSSHCommand(ctx context.Context, dir, sshKey string) error
 
 	// LsRemote succeeds when the remote is reachable and readable over SSH —
-	// proving the repo exists and the deploy key reads.
-	LsRemote(ctx context.Context, url string) error
+	// proving the repo exists and the deploy key reads. It runs in dir (so a
+	// repo's local core.sshCommand applies) and, when sshKey is set, also via
+	// GIT_SSH_COMMAND for contexts with no checkout yet (dir == "").
+	LsRemote(ctx context.Context, dir, url, sshKey string) error
 	// PushDryRun succeeds when the remote grants write access.
 	PushDryRun(ctx context.Context, dir, remote string) error
 
 	Status(ctx context.Context, dir string) (Status, error)
+}
+
+// SSHCommand builds the GIT_SSH_COMMAND / core.sshCommand value that pins git to
+// a single deploy key.
+func SSHCommand(keyPath string) string {
+	return "ssh -i " + keyPath + " -o IdentitiesOnly=yes"
 }
