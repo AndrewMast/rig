@@ -31,6 +31,10 @@ jobs:
           chmod +x scripts/extract-changelog.sh
           # Write notes outside the repo so GoReleaser doesn't see a dirty tree.
           scripts/extract-changelog.sh "$version" > "$RUNNER_TEMP/RELEASE_NOTES.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/RELEASE_NOTES.md"; then
+            echo "::error::extracted release notes are empty for ${GITHUB_REF_NAME}"
+            exit 1
+          fi
           echo "Release notes:"
           cat "$RUNNER_TEMP/RELEASE_NOTES.md"
 
