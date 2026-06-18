@@ -103,7 +103,8 @@ func newGroupListCmd() *cobra.Command {
 }
 
 func newGroupRenameCmd() *cobra.Command {
-	return &cobra.Command{
+	var yes bool
+	cmd := &cobra.Command{
 		Use:   "rename <old> <new>",
 		Short: "Rename a group and move its folder (relocates member projects)",
 		Args:  cobra.ExactArgs(2),
@@ -126,7 +127,7 @@ func newGroupRenameCmd() *cobra.Command {
 
 			cmd.Printf("rename %s -> %s\n  %s -> %s\n", g.Name, args[1], oldPath, newPath)
 			warnAffected(cmd, members)
-			ok, err := app.UI.Confirm("Proceed?", false)
+			ok, err := app.confirm("Proceed?", false, yes)
 			if err != nil || !ok {
 				return err
 			}
@@ -148,10 +149,13 @@ func newGroupRenameCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip the confirmation prompt")
+	return cmd
 }
 
 func newGroupMoveCmd() *cobra.Command {
 	var base string
+	var yes bool
 	cmd := &cobra.Command{
 		Use:   "move <name> --base <newbase>",
 		Short: "Move a group to a new base path (relocates member projects)",
@@ -175,7 +179,7 @@ func newGroupMoveCmd() *cobra.Command {
 
 			cmd.Printf("move %s\n  %s -> %s\n", g.Name, oldPath, newPath)
 			warnAffected(cmd, members)
-			ok, err := app.UI.Confirm("Proceed?", false)
+			ok, err := app.confirm("Proceed?", false, yes)
 			if err != nil || !ok {
 				return err
 			}
@@ -191,6 +195,7 @@ func newGroupMoveCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&base, "base", "", "new base path")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip the confirmation prompt")
 	return cmd
 }
 

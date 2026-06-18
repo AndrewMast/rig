@@ -56,6 +56,16 @@ func (a *App) resolveTarget(reg *registry.Registry, token string, allowGroup boo
 	return filtered[idx], nil
 }
 
+// confirm asks for confirmation unless assumeYes is set (the scriptable bypass
+// for destructive/prompting commands). It centralizes the "flags are the
+// scriptable path" rule so a --yes/--force flag works the same everywhere.
+func (a *App) confirm(prompt string, def, assumeYes bool) (bool, error) {
+	if assumeYes {
+		return true, nil
+	}
+	return a.UI.Confirm(prompt, def)
+}
+
 func targetLabel(t resolver.Target) string {
 	if t.Kind == resolver.KindGroup {
 		return t.Group.Name + "/  (group)"

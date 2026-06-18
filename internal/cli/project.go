@@ -161,7 +161,7 @@ func newProjectDeleteCmd() *cobra.Command {
 					}
 				}
 			}
-			ok, err := app.UI.Confirm(fmt.Sprintf("Delete %s and its folder %s?", p.ID(), path), false)
+			ok, err := app.confirm(fmt.Sprintf("Delete %s and its folder %s?", p.ID(), path), false, force)
 			if err != nil || !ok {
 				return err
 			}

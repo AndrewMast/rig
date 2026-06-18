@@ -104,7 +104,8 @@ func newTypeNewCmd() *cobra.Command {
 }
 
 func newTypeDeleteCmd() *cobra.Command {
-	return &cobra.Command{
+	var yes bool
+	cmd := &cobra.Command{
 		Use:   "delete <type>",
 		Short: "Delete a type",
 		Args:  cobra.ExactArgs(1),
@@ -114,7 +115,7 @@ func newTypeDeleteCmd() *cobra.Command {
 			if _, err := os.Stat(dir); os.IsNotExist(err) {
 				return fmt.Errorf("type %q not found", args[0])
 			}
-			ok, err := app.UI.Confirm(fmt.Sprintf("Delete type %q?", args[0]), false)
+			ok, err := app.confirm(fmt.Sprintf("Delete type %q?", args[0]), false, yes)
 			if err != nil || !ok {
 				return err
 			}
@@ -125,6 +126,8 @@ func newTypeDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip the confirmation prompt")
+	return cmd
 }
 
 func sortedKeys(m map[string]string) []string {

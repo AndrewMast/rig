@@ -328,21 +328,24 @@ func (a *App) originAdd(cmd *cobra.Command, reg *registry.Registry, p *model.Pro
 
 func newProjectUpstreamCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "upstream [add|remove]",
+		Use:   "upstream [add|remove] [group/name] [owner/repo]",
 		Short: "Inspect or change a project's upstream (fork-like) remote",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.RangeArgs(1, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
-			action, token := "inspect", args[0]
+			action, token, upArg := "inspect", args[0], ""
 			if args[0] == "add" || args[0] == "remove" {
-				if len(args) != 2 {
-					return fmt.Errorf("usage: rig project upstream %s <group/name>", args[0])
+				if len(args) < 2 {
+					return fmt.Errorf("usage: rig project upstream %s <group/name> [owner/repo]", args[0])
 				}
 				action, token = args[0], args[1]
+				if len(args) >= 3 {
+					upArg = args[2]
+				}
 			}
 			p, err := app.loadProject(reg, token)
 			if err != nil {
@@ -357,9 +360,12 @@ func newProjectUpstreamCmd() *cobra.Command {
 				cmd.Printf("%s upstream: %s\n", p.ID(), orNone(p.Upstream))
 				return nil
 			case "add":
-				up, err := app.UI.Input("Upstream owner/repo", "")
-				if err != nil {
-					return err
+				up := upArg
+				if up == "" {
+					up, err = app.UI.Input("Upstream owner/repo", "")
+					if err != nil {
+						return err
+					}
 				}
 				if _, _, ok := model.ParseRepo(up); !ok {
 					return fmt.Errorf("expected owner/repo, got %q", up)
