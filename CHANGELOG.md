@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-06-18
+
 ### Added
 
 - `rig key verify [id | owner/repo]` probes a deploy key over SSH and promotes
@@ -63,5 +65,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - Scriptable destructive commands: `--yes` on `group rename`/`group move`/`type
   delete` and `project delete --force` skip confirmation prompts.
 
-[Unreleased]: https://github.com/AndrewMast/rig/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/AndrewMast/rig/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/AndrewMast/rig/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/AndrewMast/rig/releases/tag/v0.0.1
