@@ -345,22 +345,44 @@ func newProjectUpstreamCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "upstream [add|remove] [group/name] [owner/repo]",
 		Short: "Inspect or change a project's upstream (fork-like) remote",
-		Args:  cobra.RangeArgs(1, 3),
+		Args:  cobra.MaximumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
-			action, token, upArg := "inspect", args[0], ""
-			if args[0] == "add" || args[0] == "remove" {
+			// Arg shapes mirror `origin`:
+			//   upstream                         inspect the cwd project
+			//   upstream <g/n>                   inspect that project
+			//   upstream add|remove <g/n> [up]   explicit action on a project
+			//   upstream <owner/repo>            smart: add upstream to cwd project
+			action, token, upArg := "inspect", "", ""
+			switch {
+			case len(args) == 0:
+				// inspect cwd
+			case args[0] == "add" || args[0] == "remove":
+				action = args[0]
 				if len(args) < 2 {
 					return fmt.Errorf("usage: rig project upstream %s <group/name> [owner/repo]", args[0])
 				}
-				action, token = args[0], args[1]
+				token = args[1]
 				if len(args) >= 3 {
 					upArg = args[2]
 				}
+			default:
+				// A bare owner/repo inside a project means "add this upstream".
+				if _, _, ok := model.ParseRepo(args[0]); ok && reg.FindProject(splitOrEmpty(args[0])) == nil {
+					if tok, inProj := projectTokenForCwd(app); inProj {
+						action, token, upArg = "add", tok, args[0]
+						break
+					}
+				}
+				token = args[0]
+			}
+			token, err = app.projectToken(token)
+			if err != nil {
+				return err
 			}
 			p, err := app.loadProject(reg, token)
 			if err != nil {

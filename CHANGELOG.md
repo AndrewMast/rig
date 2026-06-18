@@ -16,8 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - `rig status` now flags a bound deploy key that is still pending and points to
   `rig key verify`.
-- `rig project key` now takes an optional `group/name` and defaults to the
-  project containing the current directory, like `rig project origin`.
+- `rig project key`, `finish`, `guard`, `alias`, and `upstream` now take an
+  optional `group/name` and default to the project containing the current
+  directory, like `rig project origin`. (`rig project delete` still requires an
+  explicit target.)
 
 ### Fixed
 

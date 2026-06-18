@@ -128,22 +128,26 @@ func newProjectCmd() *cobra.Command {
 
 func newProjectFinishCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "finish <group/name>",
+		Use:   "finish [group/name]",
 		Short: "Verify and complete a pending project (clone + git-over-SSH checks)",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
-			t, err := app.resolveTarget(reg, args[0], false)
+			token, err := app.projectToken(firstArg(args))
+			if err != nil {
+				return err
+			}
+			t, err := app.resolveTarget(reg, token, false)
 			if err != nil {
 				return err
 			}
 			p := reg.FindProject(t.Project.Group, t.Project.Name)
 			if p == nil {
-				return fmt.Errorf("project %q not found", args[0])
+				return fmt.Errorf("project %q not found", token)
 			}
 			// A project can be active while a freshly (re)bound key is still
 			// pending — e.g. after `rig project key` mints a key the handoff
@@ -217,31 +221,41 @@ func newProjectDeleteCmd() *cobra.Command {
 
 func newProjectGuardCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "guard <group/name> <on|off>",
+		Use:   "guard [group/name] <on|off>",
 		Short: "Set or lift the per-project push guard",
-		Args:  cobra.ExactArgs(2),
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
+			// The mode is always the last arg; an optional leading arg is the
+			// project token (otherwise the cwd project).
+			explicit, mode := "", args[len(args)-1]
+			if len(args) == 2 {
+				explicit = args[0]
+			}
 			var guard bool
-			switch args[1] {
+			switch mode {
 			case "on":
 				guard = true
 			case "off":
 				guard = false
 			default:
-				return fmt.Errorf("expected on|off, got %q", args[1])
+				return fmt.Errorf("expected on|off, got %q", mode)
 			}
-			t, err := app.resolveTarget(reg, args[0], false)
+			token, err := app.projectToken(explicit)
+			if err != nil {
+				return err
+			}
+			t, err := app.resolveTarget(reg, token, false)
 			if err != nil {
 				return err
 			}
 			p := reg.FindProject(t.Project.Group, t.Project.Name)
 			if p == nil {
-				return fmt.Errorf("project %q not found", args[0])
+				return fmt.Errorf("project %q not found", token)
 			}
 			g := reg.FindGroup(p.Group)
 			p.Guard = guard
@@ -253,7 +267,7 @@ func newProjectGuardCmd() *cobra.Command {
 			if err := app.SaveRegistry(reg); err != nil {
 				return err
 			}
-			cmd.Printf("push guard %s for %s\n", args[1], p.ID())
+			cmd.Printf("push guard %s for %s\n", mode, p.ID())
 			return nil
 		},
 	}
@@ -261,53 +275,71 @@ func newProjectGuardCmd() *cobra.Command {
 
 func newProjectAliasCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "alias <add|rm|list> <group/name> [alias]",
+		Use:   "alias <add|rm|list> [group/name] [alias]",
 		Short: "Manage project aliases",
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.RangeArgs(1, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := appFrom(cmd)
 			reg, err := app.Registry()
 			if err != nil {
 				return err
 			}
-			t, err := app.resolveTarget(reg, args[1], false)
+			// The trailing arg of add/rm is always the alias, so the optional
+			// middle arg (if any) is the project token; otherwise use the cwd
+			// project. list takes only an optional token.
+			action := args[0]
+			explicit, alias := "", ""
+			switch action {
+			case "list":
+				if len(args) >= 2 {
+					explicit = args[1]
+				}
+			case "add", "rm":
+				switch len(args) {
+				case 2:
+					alias = args[1]
+				case 3:
+					explicit, alias = args[1], args[2]
+				default:
+					return fmt.Errorf("usage: rig project alias %s [group/name] <alias>", action)
+				}
+			default:
+				return fmt.Errorf("unknown action %q (want add|rm|list)", action)
+			}
+			token, err := app.projectToken(explicit)
+			if err != nil {
+				return err
+			}
+			t, err := app.resolveTarget(reg, token, false)
 			if err != nil {
 				return err
 			}
 			p := reg.FindProject(t.Project.Group, t.Project.Name)
 			if p == nil {
-				return fmt.Errorf("project %q not found", args[1])
+				return fmt.Errorf("project %q not found", token)
 			}
-			switch args[0] {
+			switch action {
 			case "list":
 				for _, al := range p.Aliases {
 					cmd.Println(al)
 				}
 				return nil
 			case "add":
-				if len(args) < 3 {
-					return fmt.Errorf("usage: rig project alias add <group/name> <alias>")
-				}
-				if err := ensureAliasFree(reg, args[2]); err != nil {
+				if err := ensureAliasFree(reg, alias); err != nil {
 					return err
 				}
-				updated, changed := addAlias(p.Aliases, args[2])
+				updated, changed := addAlias(p.Aliases, alias)
 				if !changed {
 					cmd.Println("alias already present")
 					return nil
 				}
 				p.Aliases = updated
 			case "rm":
-				if len(args) < 3 {
-					return fmt.Errorf("usage: rig project alias rm <group/name> <alias>")
-				}
-				updated, changed := removeAlias(p.Aliases, args[2])
+				updated, changed := removeAlias(p.Aliases, alias)
 				if !changed {
-					return fmt.Errorf("alias %q not found on %s", args[2], p.ID())
+					return fmt.Errorf("alias %q not found on %s", alias, p.ID())
 				}
 				p.Aliases = updated
-			default:
-				return fmt.Errorf("unknown action %q (want add|rm|list)", args[0])
 			}
 			return app.SaveRegistry(reg)
 		},

@@ -212,6 +212,76 @@ func TestProjectFinishVerifiesPendingBoundKey(t *testing.T) {
 	}
 }
 
+// setupCwdProject clones AndrewMast/widget into group Acme, creates its checkout
+// directory, and chdirs into it so cwd-defaulting commands resolve to it.
+func setupCwdProject(t *testing.T, stdin string) *testApp {
+	t.Helper()
+	ta := newTestApp(t, stdin)
+	reg := ta.reg(t)
+	reg.AddKey(model.Key{ID: "abc123", Repo: "AndrewMast/widget", Write: true, Slug: "andrewmast-widget", State: model.StateActive})
+	ta.SaveRegistry(reg)
+	if _, err := ta.run(t, "clone", "AndrewMast/widget"); err != nil {
+		t.Fatal(err)
+	}
+	reg = ta.reg(t)
+	dir := reg.FindProject("Acme", "widget").Path(*reg.FindGroup("Acme"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	return ta
+}
+
+func TestProjectGuardDefaultsToCwd(t *testing.T) {
+	ta := setupCwdProject(t, "Acme\n\n")
+	if _, err := ta.run(t, "project", "guard", "on"); err != nil {
+		t.Fatalf("guard on (cwd): %v", err)
+	}
+	if !ta.reg(t).FindProject("Acme", "widget").Guard {
+		t.Error("guard should be on")
+	}
+}
+
+func TestProjectAliasDefaultsToCwd(t *testing.T) {
+	ta := setupCwdProject(t, "Acme\n\n")
+	if _, err := ta.run(t, "project", "alias", "add", "widg"); err != nil {
+		t.Fatalf("alias add (cwd): %v", err)
+	}
+	out, err := ta.run(t, "project", "alias", "list")
+	if err != nil {
+		t.Fatalf("alias list (cwd): %v", err)
+	}
+	if !strings.Contains(out, "widg") {
+		t.Errorf("alias list = %q, want it to contain widg", out)
+	}
+}
+
+func TestProjectUpstreamDefaultsToCwd(t *testing.T) {
+	ta := setupCwdProject(t, "Acme\n\n")
+	// Smart form: a bare owner/repo inside the project adds it as upstream.
+	if _, err := ta.run(t, "project", "upstream", "Upstream/widget"); err != nil {
+		t.Fatalf("upstream (cwd): %v", err)
+	}
+	if got := ta.reg(t).FindProject("Acme", "widget").Upstream; got != "Upstream/widget" {
+		t.Errorf("upstream = %q, want Upstream/widget", got)
+	}
+}
+
+func TestProjectFinishDefaultsToCwd(t *testing.T) {
+	ta := setupCwdProject(t, "Acme\n\n")
+	reg := ta.reg(t)
+	p := reg.FindProject("Acme", "widget")
+	p.State = model.StatePending
+	ta.SaveRegistry(reg)
+
+	if _, err := ta.run(t, "project", "finish"); err != nil {
+		t.Fatalf("finish (cwd): %v", err)
+	}
+	if got := ta.reg(t).FindProject("Acme", "widget").State; got != model.StateActive {
+		t.Errorf("state = %s, want active", got)
+	}
+}
+
 func TestProjectGuardToggle(t *testing.T) {
 	ta := newTestApp(t, "Acme\n\n")
 	reg := ta.reg(t)

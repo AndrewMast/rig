@@ -42,6 +42,28 @@ func projectTokenForCwd(app *App) (string, bool) {
 	return best.ID(), true
 }
 
+// firstArg returns args[0], or "" when args is empty.
+func firstArg(args []string) string {
+	if len(args) > 0 {
+		return args[0]
+	}
+	return ""
+}
+
+// projectToken returns explicit when non-empty, otherwise the token of the
+// project containing the current directory. It errors when neither is available,
+// letting project subcommands accept the token as optional.
+func (a *App) projectToken(explicit string) (string, error) {
+	if explicit != "" {
+		return explicit, nil
+	}
+	tok, ok := projectTokenForCwd(a)
+	if !ok {
+		return "", fmt.Errorf("not inside a project; pass a group/name")
+	}
+	return tok, nil
+}
+
 // pickProjectToken prompts the user to choose among all projects and returns the
 // chosen (Group/Name) token.
 func (a *App) pickProjectToken(prompt string) (string, error) {
