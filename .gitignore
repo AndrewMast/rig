@@ -1,0 +1,9 @@
+# Build output
+/rig
+/dist/
+
+# macOS cruft
+.DS_Store
+
+# Local editor/agent state
+*.local.json
