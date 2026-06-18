@@ -1,0 +1,42 @@
+version: 2
+
+project_name: rig
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: rig
+    main: .
+    binary: rig
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/AndrewMast/rig/internal/cli.version={{ .Version }}
+
+archives:
+  - id: rig
+    formats: [tar.gz]
+    name_template: "rig_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+release:
+  github:
+    owner: AndrewMast
+    name: rig
+
+changelog:
+  disable: true

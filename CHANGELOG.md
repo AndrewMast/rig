@@ -1,0 +1,34 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-06-18
+
+### Added
+
+- Groups as first-class named wrappers with their own base path and aliases;
+  `rig group new/list/rename/move/delete/alias` with real filesystem moves.
+- Projects identified by the `(group, name)` pair with fully derived paths;
+  local-only projects are first-class.
+- `rig create`, `rig adopt`, and `rig clone` (`--read` / `--public`) with group
+  auto-vivification and smart name-collision suggestions.
+- Multi-key deploy-key model: many keys per repo, read and write as independent
+  key objects; `rig key create/list/delete`.
+- Per-project push guard (the `no_push` sentinel) via `rig project guard`, plus
+  `rig project key/origin/upstream/finish/delete/alias`.
+- Pluggable handoff delivery (clipboard, drop, link, print, file, gh) with a
+  dual-mode finish/verify loop; verification is always git-over-SSH.
+- Optional read-only GitHub metadata token (`rig config token set/remove/status`).
+- Resolver-driven navigation (`rig path`/`rig cd`), zsh/bash shell integration,
+  and config-defined launchers.
+- Reusable project types and per-project `rig.toml` overlays with hooks and
+  extra commands.
+- Configuration via `config.toml` with `rig config show/get/set/edit`.
+
+[Unreleased]: https://github.com/AndrewMast/rig/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/AndrewMast/rig/releases/tag/v0.1.0
