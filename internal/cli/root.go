@@ -40,9 +40,12 @@ func newRootCmd(app *App) *cobra.Command {
 	root.AddCommand(newStatusCmd())
 	root.AddCommand(newProjectCmd())
 	root.AddCommand(newKeyCmd())
+	root.AddCommand(newTypeCmd())
 
-	// Config-defined launchers register last and may not shadow a built-in.
+	// Config-defined launchers register next and may not shadow a built-in.
 	registerLaunchers(root, app)
+	// The cwd project's type/rig.toml commands register last (lowest priority).
+	registerProjectCommands(root, app)
 
 	return root
 }

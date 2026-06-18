@@ -11,6 +11,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 // UI carries the streams and interactivity flag.
@@ -98,6 +100,29 @@ func (u *UI) Input(prompt, def string) (string, error) {
 		return def, nil
 	}
 	return line, nil
+}
+
+// Secret reads a line without echoing it (for tokens). On a real terminal it
+// uses no-echo input; otherwise it falls back to a normal read so scripted tests
+// still work.
+func (u *UI) Secret(prompt string) (string, error) {
+	if !u.Interactive {
+		return "", ErrNotInteractive
+	}
+	fmt.Fprint(u.Out, prompt+": ")
+	if f, ok := u.In.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+		b, err := term.ReadPassword(int(f.Fd()))
+		fmt.Fprintln(u.Out)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(b)), nil
+	}
+	line, err := u.buf().ReadString('\n')
+	if err != nil && line == "" {
+		return "", err
+	}
+	return strings.TrimSpace(line), nil
 }
 
 // Select shows a numbered pick-list and returns the chosen index. With a single

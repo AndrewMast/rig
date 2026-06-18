@@ -19,6 +19,7 @@ func newConfigCmd() *cobra.Command {
 		newConfigGetCmd(),
 		newConfigSetCmd(),
 		newConfigEditCmd(),
+		newConfigTokenCmd(),
 	)
 	return cmd
 }
